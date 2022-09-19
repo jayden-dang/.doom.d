@@ -285,12 +285,8 @@ src_org{:header-args:emacs-lisp: :tangle no}. All source blocks in this section
 inherits these headers, so they will not be tangled unless overwriting in the
 block's header.
 
-*** File skeleton :init:
-This first section defines the template for the subsections, it uses the =no-web=
-syntax to include subsections specified as ~<<sub-section-name>>~.
-
 #+name: init.el
-#+begin_src emacs-lisp :tangle init.el :noweb no-export :comments no
+#+begin_src emacs-lisp :tangle init.el :noweb no-export
 ;;; init.el -*- coding: utf-8-unix; lexical-binding: t; -*-
 
 ;; This file controls what Doom modules are enabled and what order they load in.
@@ -300,6 +296,7 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
 (load! "pseudo-early-init.el")
 
 (doom! :input
+       bidi
        ;;chinese
        ;;japanese
        ;;layout            ; auie,ctsrnm is the superior home row
@@ -329,7 +326,7 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
        (popup +all +defaults)   ; tame sudden yet inevitable temporary windows
        ;;tabs              ; a tab bar for Emacs
        (treemacs +lsp)          ; a project drawer, like neotree but cooler
-       unicode           ; extended unicode support for various languages
+       ;;unicode           ; extended unicode support for various languages
        (vc-gutter +diff-hl +pretty)         ; vcs diff in the fringe
        vi-tilde-fringe   ; fringe tildes to mark beyond EOB
        (window-select +numbers)     ; visually switch windows
@@ -496,7 +493,12 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
 
        :config
        literate
-       (default +bindings +smartparens))
+       (default +bindings +smartparens)
+
+       :private
+       (grammar +lsp)
+       (binary +disasm)
+       (dired-ng +icons +bindings))
 #+end_src
 
 ** Additional packages (=packages.el=) :package:
