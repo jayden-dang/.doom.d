@@ -1,0 +1,13 @@
+# -*- coding: utf-8-unix; -*-
+#+title: Doom Emacs Configuration
+#+subtitle: Emacs configuration for work and life!
+#+author: Dang Quang Vu
+#+email: vugomars@gmail.com
+#+lastmod: 2022-09-18
+#+options: title:t author:t email:t toc:t date:t tags:nil
+#+property: header-args:emacs-lisp :tangle yes :comments link
+#+property: header-args:elisp :exports code
+#+property: header-args:shell :tangle "setup.sh"
+#+property: header-args :tangle no :results silent :eval no-export
+#+startup: fold noindent
+#+latex_compiler: xelatex
