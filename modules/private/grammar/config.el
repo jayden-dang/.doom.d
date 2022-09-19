@@ -14,10 +14,10 @@
     (cond (IS-MAC
            (cond
             ;; is user using home brew?
-            ((file-directory-p "/usr/local/Cellar/languagetool")
+            ((file-directory-p "/opt/homebrew/Cellar/languagetool")
              (setq langtool-language-tool-jar
-                   (locate-file "libexec/languagetool-commandline.jar"
-                                (doom-files-in "/usr/local/Cellar/languagetool"
+                   (locate-file "5.8/libexec/languagetool-commandline.jar"
+                                (doom-files-in "/opt/homebrew/Cellar/languagetool"
                                                :type 'dirs
                                                :depth 2))))
             ;; macports compatibility

@@ -1,76 +1,134 @@
-;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+;;; config.el -*- coding: utf-8-unix; lexical-binding: t; -*-
 
-;; Place your private configuration here! Remember, you do not need to run 'doom
-;; sync' after modifying this file!
+;; [[file:config.org::*System/User/Default information][System/User/Default information:1]]
+;; global mode
+(global-subword-mode 1)
 
-
-;; Some functionality uses this to identify you, e.g. GPG configuration, email
-;; clients, file templates and snippets. It is optional.
-(setq user-full-name "John Doe"
-      user-mail-address "john@doe.com")
-
-;; Doom exposes five (optional) variables for controlling fonts in Doom:
 ;;
-;; - `doom-font' -- the primary font to use
-;; - `doom-variable-pitch-font' -- a non-monospace font (where applicable)
-;; - `doom-big-font' -- used for `doom-big-font-mode'; use this for
-;;   presentations or streaming.
-;; - `doom-unicode-font' -- for unicode glyphs
-;; - `doom-serif-font' -- for the `fixed-pitch-serif' face
-;;
-;; See 'C-h v doom-font' for documentation and more examples of what they
-;; accept. For example:
-;;
-;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
-;;      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
-;;
-;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
-;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
-;; refresh your font settings. If Emacs still can't find your font, it likely
-;; wasn't installed correctly. Font issues are rarely Doom issues!
+(setq user-full-name "Dang Quang Vu"
+      user-mail-address "vugomars@gmail.com"
 
-;; There are two ways to load a theme. Both assume the theme is installed and
-;; available. You can either set `doom-theme' or manually load a theme with the
-;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
+      ;; Split horizontally to right, vertically below the current window.
+      evil-vsplit-window-right t
+      evil-split-window-below t
 
-;; This determines the style of line numbers in effect. If set to `nil', line
-;; numbers are disabled. For relative line numbers, set this to `relative'.
-(setq display-line-numbers-type t)
+      ;; Enable relative line number
+      display-line-numbers-type 'relative
 
-;; If you use `org' and don't want your org files in the default location below,
-;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+      source-directory (expand-file-name "~/.emacs.d/")
 
 
-;; Whenever you reconfigure a package, make sure to wrap your config in an
-;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
-;;
-;;   (after! PACKAGE
-;;     (setq x y))
-;;
-;; The exceptions to this rule:
-;;
-;;   - Setting file/directory variables (like `org-directory')
-;;   - Setting variables which explicitly tell you to set them before their
-;;     package is loaded (see 'C-h v VARIABLE' to look up their documentation).
-;;   - Setting doom variables (which start with 'doom-' or '+').
-;;
-;; Here are some additional functions/macros that will help you configure Doom.
-;;
-;; - `load!' for loading external *.el files relative to this one
-;; - `use-package!' for configuring packages
-;; - `after!' for running code after a package has loaded
-;; - `add-load-path!' for adding directories to the `load-path', relative to
-;;   this file. Emacs searches the `load-path' when you load packages with
-;;   `require' or `use-package'.
-;; - `map!' for binding new keys
-;;
-;; To get information about any of these functions/macros, move the cursor over
-;; the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
-;; This will open documentation for it, including demos of how they are used.
-;; Alternatively, use `C-h o' to look up a symbol (functions, variables, faces,
-;; etc).
-;;
-;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
-;; they are implemented.
+      )
+
+(setq-default delete-by-moving-to-trash t ;; Delete files by moving them to trash.
+              trash-directory nil
+
+              ;; Take new window space from all other windows
+              window-combination-resize t
+              ;; stretch cursor to the glyph width
+              x-stretch-cursor t
+
+
+
+              )
+;; System/User/Default information:1 ends here
+
+;; [[file:config.org::*Common Variables][Common Variables:1]]
+(defvar +my/lang-main          "en")
+(defvar +my/lang-secondary     "cn")
+(defvar +my/lang-mother-tongue "vn")
+
+(defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
+(defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
+(defvar +my/biblio-notes-path     (expand-file-name "~/Dropbox/PhD/bibliography/notes/"))
+(defvar +my/biblio-styles-path    (expand-file-name "~/Zotero/styles/"))
+
+;; Set it early, to avoid creating "~/org" at startup
+(setq org-directory "~/Dropbox/Org")
+;; Common Variables:1 ends here
+
+;; [[file:config.org::*Show list of buffer when splitting][Show list of buffer when splitting:1]]
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (consult-buffer))
+;; Show list of buffer when splitting:1 ends here
+
+;; [[file:config.org::*Undo-fu][Undo-fu:1]]
+;; Increase undo history limits even more
+(after! undo-fu
+  (setq undo-limit        10000000     ;; 1MB   (default is 160kB, Doom's default is 400kB)
+        undo-strong-limit 100000000    ;; 100MB (default is 240kB, Doom's default is 3MB)
+        undo-outer-limit  1000000000)) ;; 1GB   (default is 24MB,  Doom's default is 48MB)
+
+(after! evil
+  (setq evil-want-fine-undo t)) ;; By default while in insert all changes are one big blob
+;; Undo-fu:1 ends here
+
+;; [[file:config.org::*Visual undo (=vundo=)][Visual undo (=vundo=):2]]
+(use-package! vundo
+  :defer t
+  :init
+  (defconst +vundo-unicode-symbols
+   '((selected-node   . ?●)
+     (node            . ?○)
+     (vertical-stem   . ?│)
+     (branch          . ?├)
+     (last-branch     . ?╰)
+     (horizontal-stem . ?─)))
+
+  (map! :leader
+        (:prefix ("o")
+         :desc "vundo" "v" #'vundo))
+
+  :config
+  (setq vundo-glyph-alist +vundo-unicode-symbols
+        vundo-compact-display t
+        vundo-window-max-height 6))
+;; Visual undo (=vundo=):2 ends here
+
+;; [[file:config.org::*Messages buffer][Messages buffer:1]]
+(defvar +messages--auto-tail-enabled nil)
+
+(defun +messages--auto-tail-a (&rest arg)
+  "Make *Messages* buffer auto-scroll to the end after each message."
+  (let* ((buf-name (buffer-name (messages-buffer)))
+         ;; Create *Messages* buffer if it does not exist
+         (buf (get-buffer-create buf-name)))
+    ;; Activate this advice only if the point is _not_ in the *Messages* buffer
+    ;; to begin with. This condition is required; otherwise you will not be
+    ;; able to use `isearch' and other stuff within the *Messages* buffer as
+    ;; the point will keep moving to the end of buffer :P
+    (when (not (string= buf-name (buffer-name)))
+      ;; Go to the end of buffer in all *Messages* buffer windows that are
+      ;; *live* (`get-buffer-window-list' returns a list of only live windows).
+      (dolist (win (get-buffer-window-list buf-name nil :all-frames))
+        (with-selected-window win
+          (goto-char (point-max))))
+      ;; Go to the end of the *Messages* buffer even if it is not in one of
+      ;; the live windows.
+      (with-current-buffer buf
+        (goto-char (point-max))))))
+
+(defun +messages-auto-tail-toggle ()
+  "Auto tail the '*Messages*' buffer."
+  (interactive)
+  (if +messages--auto-tail-enabled
+      (progn
+        (advice-remove 'message '+messages--auto-tail-a)
+        (setq +messages--auto-tail-enabled nil)
+        (message "+messages-auto-tail: Disabled."))
+    (advice-add 'message :after '+messages--auto-tail-a)
+    (setq +messages--auto-tail-enabled t)
+    (message "+messages-auto-tail: Enabled.")))
+;; Messages buffer:1 ends here
+
+;; [[file:config.org::*Secrets][Secrets:1]]
+(setq auth-sources '("~/.authinfo.gpg")
+      auth-source-do-cache t
+      auth-source-cache-expiry 86400 ; All day, defaut is 2h (7200)
+      password-cache t
+      password-cache-expiry 86400)
+
+(after! epa
+  (setq-default epa-file-encrypt-to '("F2204E74F9D848C2")))
+;; Secrets:1 ends here

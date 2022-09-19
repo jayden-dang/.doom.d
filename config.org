@@ -36,8 +36,7 @@ I'm moving the big reusable configuration parts to =.doom.d/modules/private=
 ;;; config.el -*- coding: utf-8-unix; lexical-binding: t; -*-
 #+end_src
 
-Add the shebang and the description to the =setup.sh= file, which will be used to
-set system settings and install some missing dependencies.
+- Thêm description vào =setup.sh= file, Tệp này sẽ được sử dụng để thiết lập cài đặt hệ thống và cài đặt một số dependencies.
 
 #+begin_src shell :comments no :tangle-mode
 #!/bin/bash
@@ -48,7 +47,7 @@ set system settings and install some missing dependencies.
 # Dang Quang Vu <vugomars@gmail.com> (c) 2022
 #+end_src
 
-Add an initial comment to the =~/.zshrc= file.
+- Add an initial comment & default enviroment to the =~/.zshrc= file.
 
 #+begin_src shell :comments no :tangle ~/.zshrc
 # -*- mode: sh; -*-
@@ -92,8 +91,8 @@ export PKG_CONFIG_PATH=/opt/homebrew/bin/pkg-config
 #+end_src
 
 ** Pseudo early-init :early:
-This file will be loaded before the content of Doom's private =init.el=, I add
-some special stuff which I want to load very early.
+- This file will be loaded before the content of Doom's private =init.el=, I add some special stuff which I want to load very early.
+- File này sẽ được load trước khi dữ liệu trong file init.el được khởi chạy, Tôi muốn thêm 1 vài stuff đặc biệt và trong file này.
 
 #+begin_src emacs-lisp :tangle pseudo-early-init.el
 ;;; pseudo-early-init.el -*- coding: utf-8-unix; lexical-binding: t; -*-
@@ -101,9 +100,7 @@ some special stuff which I want to load very early.
 #+end_src
 
 *** Useful functions
-Here we define some useful functions, some of them are available via other
-packages like ~cl-lib~, ~dash.el~ or ~s.el~, but I don't like to load too much third
-party libraries, particulary in early stage, so let's define here.
+- Trong file này chúng ta sẽ định nghĩa 1 vài function, một trong số chúng có thể dược sử dụng trong các file config. Nó có thể được sử dụng trong một vài gói package, nhưng vũ thich tự định nghĩa nó hơn.
 
 #+begin_src emacs-lisp :tangle pseudo-early-init.el
 ;;; === Primitives ===
@@ -281,18 +278,7 @@ store the result in global constants.
 :header-args:emacs-lisp: :tangle no
 :END:
 
-Here is the literate configuration which generates the Doom's =init.el= file, this
-file contains all the enabled Doom modules with the appropriate flags.
-
-This section defines the default source blocks arguments
-src_org{:header-args:emacs-lisp: :tangle no}. All source blocks in this section
-inherits these headers, so they will not be tangled unless overwriting in the
-block's header.
-
-*** File skeleton :init:
-This first section defines the template for the subsections, it uses the =no-web=
-syntax to include subsections specified as ~<<sub-section-name>>~.
-
+- Đây là file cấu hình sẵn của Doom, bạn chỉ việc bật những chức năng bạn cần lên =Doom= sẽ tự cài đặt cho bạn trong lần synchronization tiếp theo.
 #+name: init.el
 #+begin_src emacs-lisp :tangle init.el :noweb no-export :comments no
 ;;; init.el -*- coding: utf-8-unix; lexical-binding: t; -*-
@@ -333,7 +319,7 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
        (popup +all +defaults)   ; tame sudden yet inevitable temporary windows
        ;;tabs              ; a tab bar for Emacs
        (treemacs +lsp)          ; a project drawer, like neotree but cooler
-       unicode           ; extended unicode support for various languages
+       ;;unicode           ; extended unicode support for various languages
        (vc-gutter +diff-hl +pretty)         ; vcs diff in the fringe
        vi-tilde-fringe   ; fringe tildes to mark beyond EOB
        (window-select +numbers)     ; visually switch windows
@@ -349,7 +335,7 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
        ;;lispy             ; vim for lisp, for people who don't like vim
        multiple-cursors  ; editing in many places at once
        ;;objed             ; text object editing for the innocent
-       parinfer          ; turn lisp into python, sort of
+       ;; parinfer          ; turn lisp into python, sort of
        ;;rotate-text       ; cycle region at point between text candidates
        snippets          ; my elves. They type so I don't have to
        word-wrap         ; soft wrapping with language-aware indent
@@ -495,33 +481,50 @@ syntax to include subsections specified as ~<<sub-section-name>>~.
        emms
        everywhere        ; *leave* Emacs!? You must be joking
        irc               ; how neckbeards socialize
-       (rss +org)        ; emacs as an RSS reader
+       ;;(rss +org)        ; emacs as an RSS reader
        twitter           ; twitter client https://twitter.com/vnought
 
        :config
        literate
-       (default +bindings +smartparens))
+       (default +bindings +smartparens)
+
+       :private
+       ;;(grammar +lsp)
+       ;;(binary +disasm)
+       (dired-ng +icons +bindings)
+       )
 #+end_src
 
 ** Additional packages (=packages.el=) :package:
-This section generates Doom's =packages.el=, with the associated configurations
-(~use-package!~ blocks).
-
-This file shouldn't be byte compiled.
-
+- This file shouldn't be byte compiled.
 #+begin_src emacs-lisp :tangle packages.el
 ;; -*- coding: utf-8-unix; no-byte-compile: t; -*-
 #+end_src
 
 * General Emacs Setting
 ** System/User/Default information :user:info:
+- sử dụng =setq= để set giá trị. (setq [SYM VAL]) với SYM là symbol =literal=, còn VAl là =evaluated=.
+- Sử dụng =setq-default= để set giá trị mặc định.
+- =defvar= tạo biến. (defvar SYMBOL &optional INITVALUE DOCSTRING)
+- =defadvice= tại hàm (function).
 #+begin_src emacs-lisp
+;; global mode
+(global-subword-mode 1)
+
+;;
 (setq user-full-name "Dang Quang Vu"
       user-mail-address "vugomars@gmail.com"
 
       ;; Split horizontally to right, vertically below the current window.
       evil-vsplit-window-right t
       evil-split-window-below t
+
+      ;; Enable relative line number
+      display-line-numbers-type 'relative
+
+      source-directory (expand-file-name "~/.emacs.d/")
+
+
       )
 
 (setq-default delete-by-moving-to-trash t ;; Delete files by moving them to trash.
@@ -529,6 +532,9 @@ This file shouldn't be byte compiled.
 
               ;; Take new window space from all other windows
               window-combination-resize t
+              ;; stretch cursor to the glyph width
+              x-stretch-cursor t
+
 
 
               )
@@ -536,14 +542,74 @@ This file shouldn't be byte compiled.
 
 #+end_src
 
-** Common Variables
-** Common Function
+** Common Variables :variable:declaration:
+#+begin_src emacs-lisp
+(defvar +my/lang-main          "en")
+(defvar +my/lang-secondary     "cn")
+(defvar +my/lang-mother-tongue "vn")
+
+(defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
+(defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
+(defvar +my/biblio-notes-path     (expand-file-name "~/Dropbox/PhD/bibliography/notes/"))
+(defvar +my/biblio-styles-path    (expand-file-name "~/Zotero/styles/"))
+
+;; Set it early, to avoid creating "~/org" at startup
+(setq org-directory "~/Dropbox/Org")
+#+end_src
+** Common Function :function:declaration:
 *** Show list of buffer when splitting
 #+begin_src emacs-lisp
 (defadvice! prompt-for-buffer (&rest _)
   :after '(evil-window-split evil-window-vsplit)
   (consult-buffer))
 #+end_src
+
+** Undo
+*** Undo-fu
+Tweak =undo-fu= and other stuff from Doom's =:emacs undo=.
+
+#+begin_src emacs-lisp
+;; Increase undo history limits even more
+(after! undo-fu
+  (setq undo-limit        10000000     ;; 1MB   (default is 160kB, Doom's default is 400kB)
+        undo-strong-limit 100000000    ;; 100MB (default is 240kB, Doom's default is 3MB)
+        undo-outer-limit  1000000000)) ;; 1GB   (default is 24MB,  Doom's default is 48MB)
+
+(after! evil
+  (setq evil-want-fine-undo t)) ;; By default while in insert all changes are one big blob
+#+end_src
+
+*** Visual undo (=vundo=)
+- Visualize Undo tree
+#+begin_src emacs-lisp :tangle packages.el
+(package! vundo
+  :recipe (:host github
+           :repo "casouri/vundo")
+  :pin "16a09774ddfbd120d625cdd35fcf480e76e278bb")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! vundo
+  :defer t
+  :init
+  (defconst +vundo-unicode-symbols
+   '((selected-node   . ?●)
+     (node            . ?○)
+     (vertical-stem   . ?│)
+     (branch          . ?├)
+     (last-branch     . ?╰)
+     (horizontal-stem . ?─)))
+
+  (map! :leader
+        (:prefix ("o")
+         :desc "vundo" "v" #'vundo))
+
+  :config
+  (setq vundo-glyph-alist +vundo-unicode-symbols
+        vundo-compact-display t
+        vundo-window-max-height 6))
+#+end_src
+
 ** Messages buffer :messages:buffer:
 Stick to buffer tail, useful with =*Messages*= buffer. Derived from [[https://stackoverflow.com/a/6341139/3058915][this answer]].
 
@@ -581,4 +647,19 @@ Stick to buffer tail, useful with =*Messages*= buffer. Derived from [[https://st
     (advice-add 'message :after '+messages--auto-tail-a)
     (setq +messages--auto-tail-enabled t)
     (message "+messages-auto-tail: Enabled.")))
+#+end_src
+
+** Secrets :gpg:pass:secret:
+Set the path to my GPG encrypted secrets. I like to set the cache expiry to =nil=
+instead of the default 2 hours.
+
+#+begin_src emacs-lisp
+(setq auth-sources '("~/.authinfo.gpg")
+      auth-source-do-cache t
+      auth-source-cache-expiry 86400 ; All day, defaut is 2h (7200)
+      password-cache t
+      password-cache-expiry 86400)
+
+(after! epa
+  (setq-default epa-file-encrypt-to '("F2204E74F9D848C2")))
 #+end_src
