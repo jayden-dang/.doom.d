@@ -1546,3 +1546,646 @@ current buffer's, reload dir-locals."
   (after! org
     (add-to-list 'org-babel-load-languages '(mermaid . t))))
 ;; Mermaid:2 ends here
+
+;; [[file:config.org::*Intro][Intro:1]]
+(after! org
+  
+)
+;; Intro:1 ends here
+
+;; [[file:config.org::*Org basics][Org basics:1]]
+(setq org-directory "~/Dropbox/Org/" ; let's put files here
+      org-use-property-inheritance t ; it's convenient to have properties inherited
+      org-log-done 'time             ; having the time an item is done sounds convenient
+      org-list-allow-alphabetical t  ; have a. A. a) A) list bullets
+      org-export-in-background nil   ; run export processes in external emacs process
+      org-export-async-debug t
+      org-tags-column 0
+      org-catch-invisible-edits 'smart ;; try not to accidently do weird stuff in invisible regions
+      org-export-with-sub-superscripts '{} ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+      org-pretty-entities-include-sub-superscripts nil
+      org-auto-align-tags nil
+      org-special-ctrl-a/e t
+      org-startup-indented t ;; Enable 'org-indent-mode' by default, override with '+#startup: noindent' for big files
+      org-insert-heading-respect-content t)
+;; Org basics:1 ends here
+
+;; [[file:config.org::*Babel][Babel:1]]
+(setq org-babel-default-header-args
+      '((:session  . "none")
+        (:results  . "replace")
+        (:exports  . "code")
+        (:cache    . "no")
+        (:noweb    . "no")
+        (:hlines   . "no")
+        (:tangle   . "no")
+        (:comments . "link")))
+;; Babel:1 ends here
+
+;; [[file:config.org::*Babel][Babel:2]]
+;; stolen from https://github.com/yohan-pereira/.emacs#babel-config
+(defun +org-confirm-babel-evaluate (lang body)
+  (not (string= lang "scheme"))) ;; Don't ask for scheme
+
+(setq org-confirm-babel-evaluate #'+org-confirm-babel-evaluate)
+;; Babel:2 ends here
+
+;; [[file:config.org::*EVIL][EVIL:1]]
+(map! :map evil-org-mode-map
+      :after evil-org
+      :n "g <up>" #'org-backward-heading-same-level
+      :n "g <down>" #'org-forward-heading-same-level
+      :n "g <left>" #'org-up-element
+      :n "g <right>" #'org-down-element)
+;; EVIL:1 ends here
+
+;; [[file:config.org::*TODOs][TODOs:1]]
+(setq org-todo-keywords
+      '((sequence "IDEA(i)" "TODO(t)" "NEXT(n)" "PROJ(p)" "STRT(s)" "WAIT(w)" "HOLD(h)" "|" "DONE(d)" "KILL(k)")
+        (sequence "[ ](T)" "[-](S)" "|" "[X](D)")
+        (sequence "|" "OKAY(o)" "YES(y)" "NO(n)")))
+
+(setq org-todo-keyword-faces
+      '(("IDEA" . (:foreground "goldenrod" :weight bold))
+        ("NEXT" . (:foreground "IndianRed1" :weight bold))
+        ("STRT" . (:foreground "OrangeRed" :weight bold))
+        ("WAIT" . (:foreground "coral" :weight bold))
+        ("KILL" . (:foreground "DarkGreen" :weight bold))
+        ("PROJ" . (:foreground "LimeGreen" :weight bold))
+        ("HOLD" . (:foreground "orange" :weight bold))))
+
+(defun +log-todo-next-creation-date (&rest ignore)
+  "Log NEXT creation time in the property drawer under the key 'ACTIVATED'"
+  (when (and (string= (org-get-todo-state) "NEXT")
+             (not (org-entry-get nil "ACTIVATED")))
+    (org-entry-put nil "ACTIVATED" (format-time-string "[%Y-%m-%d]"))))
+
+(add-hook 'org-after-todo-state-change-hook #'+log-todo-next-creation-date)
+;; TODOs:1 ends here
+
+;; [[file:config.org::*Tags][Tags:1]]
+(setq org-tag-persistent-alist
+      '((:startgroup . nil)
+        ("home"      . ?h)
+        ("research"  . ?r)
+        ("work"      . ?w)
+        (:endgroup   . nil)
+        (:startgroup . nil)
+        ("tool"      . ?o)
+        ("dev"       . ?d)
+        ("report"    . ?p)
+        (:endgroup   . nil)
+        (:startgroup . nil)
+        ("easy"      . ?e)
+        ("medium"    . ?m)
+        ("hard"      . ?a)
+        (:endgroup   . nil)
+        ("urgent"    . ?u)
+        ("key"       . ?k)
+        ("bonus"     . ?b)
+        ("ignore"    . ?i)
+        ("noexport"  . ?x)))
+
+(setq org-tag-faces
+      '(("home"     . (:foreground "goldenrod"  :weight bold))
+        ("research" . (:foreground "goldenrod"  :weight bold))
+        ("work"     . (:foreground "goldenrod"  :weight bold))
+        ("tool"     . (:foreground "IndianRed1" :weight bold))
+        ("dev"      . (:foreground "IndianRed1" :weight bold))
+        ("report"   . (:foreground "IndianRed1" :weight bold))
+        ("urgent"   . (:foreground "red"        :weight bold))
+        ("key"      . (:foreground "red"        :weight bold))
+        ("easy"     . (:foreground "green4"     :weight bold))
+        ("medium"   . (:foreground "orange"     :weight bold))
+        ("hard"     . (:foreground "red"        :weight bold))
+        ("bonus"    . (:foreground "goldenrod"  :weight bold))
+        ("ignore"   . (:foreground "Gray"       :weight bold))
+        ("noexport" . (:foreground "LimeGreen"  :weight bold))))
+;; Tags:1 ends here
+
+;; [[file:config.org::*Agenda][Agenda:1]]
+(setq org-agenda-files
+      (list (expand-file-name "inbox.org" org-directory)
+            (expand-file-name "agenda.org" org-directory)
+            (expand-file-name "gcal-agenda.org" org-directory)
+            (expand-file-name "notes.org" org-directory)
+            (expand-file-name "projects.org" org-directory)
+            (expand-file-name "archive.org" org-directory)))
+;; Agenda:1 ends here
+
+;; [[file:config.org::*Agenda][Agenda:2]]
+;; Agenda styling
+(setq org-agenda-block-separator ?─
+      org-agenda-time-grid
+      '((daily today require-timed)
+        (800 1000 1200 1400 1600 1800 2000)
+        " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+      org-agenda-current-time-string
+      "⭠ now ─────────────────────────────────────────────────")
+;; Agenda:2 ends here
+
+;; [[file:config.org::*Super agenda][Super agenda:1]]
+(use-package! org-super-agenda
+  :defer t
+  :config
+  (org-super-agenda-mode)
+  :init
+  (setq org-agenda-skip-scheduled-if-done t
+        org-agenda-skip-deadline-if-done t
+        org-agenda-include-deadlines t
+        org-agenda-block-separator nil
+        org-agenda-tags-column 100 ;; from testing this seems to be a good value
+        org-agenda-compact-blocks t)
+
+  (setq org-agenda-custom-commands
+        '(("o" "Overview"
+           ((agenda "" ((org-agenda-span 'day)
+                        (org-super-agenda-groups
+                         '((:name "Today"
+                            :time-grid t
+                            :date today
+                            :todo "TODAY"
+                            :scheduled today
+                            :order 1)))))
+            (alltodo "" ((org-agenda-overriding-header "")
+                         (org-super-agenda-groups
+                          '((:name "Next to do" :todo "NEXT" :order 1)
+                            (:name "Important" :tag "Important" :priority "A" :order 6)
+                            (:name "Due Today" :deadline today :order 2)
+                            (:name "Due Soon" :deadline future :order 8)
+                            (:name "Overdue" :deadline past :face error :order 7)
+                            (:name "Assignments" :tag "Assignment" :order 10)
+                            (:name "Issues" :tag "Issue" :order 12)
+                            (:name "Emacs" :tag "Emacs" :order 13)
+                            (:name "Projects" :tag "Project" :order 14)
+                            (:name "Research" :tag "Research" :order 15)
+                            (:name "To read" :tag "Read" :order 30)
+                            (:name "Waiting" :todo "WAIT" :order 20)
+                            (:name "University" :tag "Univ" :order 32)
+                            (:name "Trivial" :priority<= "E" :tag ("Trivial" "Unimportant") :todo ("SOMEDAY") :order 90)
+                            (:discard (:tag ("Chore" "Routine" "Daily"))))))))))))
+;; Super agenda:1 ends here
+
+;; [[file:config.org::*Capture][Capture:1]]
+(setq +org-capture-emails-file (expand-file-name "inbox.org" org-directory)
+      +org-capture-todo-file (expand-file-name "inbox.org" org-directory)
+      +org-capture-projects-file (expand-file-name "projects.org" org-directory))
+;; Capture:1 ends here
+
+;; [[file:config.org::*Capture][Capture:2]]
+(use-package! doct
+  :commands (doct))
+;; Capture:2 ends here
+
+;; [[file:config.org::*Capture][Capture:3]]
+(after! org-capture
+  (defun org-capture-select-template-prettier (&optional keys)
+    "Select a capture template, in a prettier way than default
+  Lisp programs can force the template by setting KEYS to a string."
+    (let ((org-capture-templates
+           (or (org-contextualize-keys
+                (org-capture-upgrade-templates org-capture-templates)
+                org-capture-templates-contexts)
+               '(("t" "Task" entry (file+headline "" "Tasks")
+                  "* TODO %?\n  %u\n  %a")))))
+      (if keys
+          (or (assoc keys org-capture-templates)
+              (error "No capture template referred to by \"%s\" keys" keys))
+        (org-mks org-capture-templates
+                 "Select a capture template\n━━━━━━━━━━━━━━━━━━━━━━━━━"
+                 "Template key: "
+                 `(("q" ,(concat (all-the-icons-octicon "stop" :face 'all-the-icons-red :v-adjust 0.01) "\tAbort")))))))
+  (advice-add 'org-capture-select-template :override #'org-capture-select-template-prettier)
+  
+  (defun org-mks-pretty (table title &optional prompt specials)
+    "Select a member of an alist with multiple keys. Prettified.
+  
+  TABLE is the alist which should contain entries where the car is a string.
+  There should be two types of entries.
+  
+  1. prefix descriptions like (\"a\" \"Description\")
+     This indicates that `a' is a prefix key for multi-letter selection, and
+     that there are entries following with keys like \"ab\", \"ax\"…
+  
+  2. Select-able members must have more than two elements, with the first
+     being the string of keys that lead to selecting it, and the second a
+     short description string of the item.
+  
+  The command will then make a temporary buffer listing all entries
+  that can be selected with a single key, and all the single key
+  prefixes.  When you press the key for a single-letter entry, it is selected.
+  When you press a prefix key, the commands (and maybe further prefixes)
+  under this key will be shown and offered for selection.
+  
+  TITLE will be placed over the selection in the temporary buffer,
+  PROMPT will be used when prompting for a key.  SPECIALS is an
+  alist with (\"key\" \"description\") entries.  When one of these
+  is selected, only the bare key is returned."
+    (save-window-excursion
+      (let ((inhibit-quit t)
+            (buffer (org-switch-to-buffer-other-window "*Org Select*"))
+            (prompt (or prompt "Select: "))
+            case-fold-search
+            current)
+        (unwind-protect
+            (catch 'exit
+              (while t
+                (setq-local evil-normal-state-cursor (list nil))
+                (erase-buffer)
+                (insert title "\n\n")
+                (let ((des-keys nil)
+                      (allowed-keys '("\C-g"))
+                      (tab-alternatives '("\s" "\t" "\r"))
+                      (cursor-type nil))
+                  ;; Populate allowed keys and descriptions keys
+                  ;; available with CURRENT selector.
+                  (let ((re (format "\\`%s\\(.\\)\\'"
+                                    (if current (regexp-quote current) "")))
+                        (prefix (if current (concat current " ") "")))
+                    (dolist (entry table)
+                      (pcase entry
+                        ;; Description.
+                        (`(,(and key (pred (string-match re))) ,desc)
+                         (let ((k (match-string 1 key)))
+                           (push k des-keys)
+                           ;; Keys ending in tab, space or RET are equivalent.
+                           (if (member k tab-alternatives)
+                               (push "\t" allowed-keys)
+                             (push k allowed-keys))
+                           (insert (propertize prefix 'face 'font-lock-comment-face) (propertize k 'face 'bold) (propertize "›" 'face 'font-lock-comment-face) "  " desc "…" "\n")))
+                        ;; Usable entry.
+                        (`(,(and key (pred (string-match re))) ,desc . ,_)
+                         (let ((k (match-string 1 key)))
+                           (insert (propertize prefix 'face 'font-lock-comment-face) (propertize k 'face 'bold) "   " desc "\n")
+                           (push k allowed-keys)))
+                        (_ nil))))
+                  ;; Insert special entries, if any.
+                  (when specials
+                    (insert "─────────────────────────\n")
+                    (pcase-dolist (`(,key ,description) specials)
+                      (insert (format "%s   %s\n" (propertize key 'face '(bold all-the-icons-red)) description))
+                      (push key allowed-keys)))
+                  ;; Display UI and let user select an entry or
+                  ;; a sublevel prefix.
+                  (goto-char (point-min))
+                  (unless (pos-visible-in-window-p (point-max))
+                    (org-fit-window-to-buffer))
+                  (let ((pressed (org--mks-read-key allowed-keys
+                                                    prompt
+                                                    (not (pos-visible-in-window-p (1- (point-max)))))))
+                    (setq current (concat current pressed))
+                    (cond
+                     ((equal pressed "\C-g") (user-error "Abort"))
+                     ;; Selection is a prefix: open a new menu.
+                     ((member pressed des-keys))
+                     ;; Selection matches an association: return it.
+                     ((let ((entry (assoc current table)))
+                        (and entry (throw 'exit entry))))
+                     ;; Selection matches a special entry: return the
+                     ;; selection prefix.
+                     ((assoc current specials) (throw 'exit current))
+                     (t (error "No entry available")))))))
+          (when buffer (kill-buffer buffer))))))
+  (advice-add 'org-mks :override #'org-mks-pretty)
+
+  (defun +doct-icon-declaration-to-icon (declaration)
+    "Convert :icon declaration to icon"
+    (let ((name (pop declaration))
+          (set  (intern (concat "all-the-icons-" (plist-get declaration :set))))
+          (face (intern (concat "all-the-icons-" (plist-get declaration :color))))
+          (v-adjust (or (plist-get declaration :v-adjust) 0.01)))
+      (apply set `(,name :face ,face :v-adjust ,v-adjust))))
+
+  (defun +doct-iconify-capture-templates (groups)
+    "Add declaration's :icon to each template group in GROUPS."
+    (let ((templates (doct-flatten-lists-in groups)))
+      (setq doct-templates
+            (mapcar (lambda (template)
+                      (when-let* ((props (nthcdr (if (= (length template) 4) 2 5) template))
+                                  (spec (plist-get (plist-get props :doct) :icon)))
+                        (setf (nth 1 template) (concat (+doct-icon-declaration-to-icon spec)
+                                                       "\t"
+                                                       (nth 1 template))))
+                      template)
+                    templates))))
+
+  (setq doct-after-conversion-functions '(+doct-iconify-capture-templates))
+
+  (defun set-org-capture-templates ()
+    (setq org-capture-templates
+          (doct `(("Personal todo" :keys "t"
+                   :icon ("checklist" :set "octicon" :color "green")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* TODO %?"
+                              "%i %a"))
+                  ("Personal note" :keys "n"
+                   :icon ("sticky-note-o" :set "faicon" :color "green")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* %?"
+                              "%i %a"))
+                  ("Email" :keys "e"
+                   :icon ("envelope" :set "faicon" :color "blue")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* TODO %^{type|reply to|contact} %\\3 %? :email:"
+                              "Send an email %^{urgancy|soon|ASAP|anon|at some point|eventually} to %^{recipiant}"
+                              "about %^{topic}"
+                              "%U %i %a"))
+                  ("Interesting" :keys "i"
+                   :icon ("eye" :set "faicon" :color "lcyan")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Interesting"
+                   :type entry
+                   :template ("* [ ] %{desc}%? :%{i-type}:"
+                              "%i %a")
+                   :children (("Webpage" :keys "w"
+                               :icon ("globe" :set "faicon" :color "green")
+                               :desc "%(org-cliplink-capture) "
+                               :i-type "read:web")
+                              ("Article" :keys "a"
+                               :icon ("file-text" :set "octicon" :color "yellow")
+                               :desc ""
+                               :i-type "read:reaserch")
+                              ("Information" :keys "i"
+                               :icon ("info-circle" :set "faicon" :color "blue")
+                               :desc ""
+                               :i-type "read:info")
+                              ("Idea" :keys "I"
+                               :icon ("bubble_chart" :set "material" :color "silver")
+                               :desc ""
+                               :i-type "idea")))
+                  ("Tasks" :keys "k"
+                   :icon ("inbox" :set "octicon" :color "yellow")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Tasks"
+                   :type entry
+                   :template ("* TODO %? %^G%{extra}"
+                              "%i %a")
+                   :children (("General Task" :keys "k"
+                               :icon ("inbox" :set "octicon" :color "yellow")
+                               :extra "")
+
+                              ("Task with deadline" :keys "d"
+                               :icon ("timer" :set "material" :color "orange" :v-adjust -0.1)
+                               :extra "\nDEADLINE: %^{Deadline:}t")
+
+                              ("Scheduled Task" :keys "s"
+                               :icon ("calendar" :set "octicon" :color "orange")
+                               :extra "\nSCHEDULED: %^{Start time:}t")))
+                  ("Project" :keys "p"
+                   :icon ("repo" :set "octicon" :color "silver")
+                   :prepend t
+                   :type entry
+                   :headline "Inbox"
+                   :template ("* %{time-or-todo} %?"
+                              "%i"
+                              "%a")
+                   :file ""
+                   :custom (:time-or-todo "")
+                   :children (("Project-local todo" :keys "t"
+                               :icon ("checklist" :set "octicon" :color "green")
+                               :time-or-todo "TODO"
+                               :file +org-capture-project-todo-file)
+                              ("Project-local note" :keys "n"
+                               :icon ("sticky-note" :set "faicon" :color "yellow")
+                               :time-or-todo "%U"
+                               :file +org-capture-project-notes-file)
+                              ("Project-local changelog" :keys "c"
+                               :icon ("list" :set "faicon" :color "blue")
+                               :time-or-todo "%U"
+                               :heading "Unreleased"
+                               :file +org-capture-project-changelog-file)))
+                  ("\tCentralised project templates"
+                   :keys "o"
+                   :type entry
+                   :prepend t
+                   :template ("* %{time-or-todo} %?"
+                              "%i"
+                              "%a")
+                   :children (("Project todo"
+                               :keys "t"
+                               :prepend nil
+                               :time-or-todo "TODO"
+                               :heading "Tasks"
+                               :file +org-capture-central-project-todo-file)
+                              ("Project note"
+                               :keys "n"
+                               :time-or-todo "%U"
+                               :heading "Notes"
+                               :file +org-capture-central-project-notes-file)
+                              ("Project changelog"
+                               :keys "c"
+                               :time-or-todo "%U"
+                               :heading "Unreleased"
+                               :file +org-capture-central-project-changelog-file)))))))
+
+  (set-org-capture-templates)
+  (unless (display-graphic-p)
+    (add-hook 'server-after-make-frame-hook
+              (defun org-capture-reinitialise-hook ()
+                (when (display-graphic-p)
+                  (set-org-capture-templates)
+                  (remove-hook 'server-after-make-frame-hook
+                               #'org-capture-reinitialise-hook))))))
+;; Capture:3 ends here
+
+;; [[file:config.org::*Capture][Capture:5]]
+(setf (alist-get 'height +org-capture-frame-parameters) 15)
+;; (alist-get 'name +org-capture-frame-parameters) "❖ Capture") ;; ATM hardcoded in other places, so changing breaks stuff
+(setq +org-capture-fn
+      (lambda ()
+        (interactive)
+        (set-window-parameter nil 'mode-line-format 'none)
+        (org-capture)))
+;; Capture:5 ends here
+
+;; [[file:config.org::*Snippet Helpers][Snippet Helpers:1]]
+(defun +yas/org-src-header-p ()
+  "Determine whether `point' is within a src-block header or header-args."
+  (pcase (org-element-type (org-element-context))
+    ('src-block (< (point) ; before code part of the src-block
+                   (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                   (forward-line 1)
+                                   (point))))
+    ('inline-src-block (< (point) ; before code part of the inline-src-block
+                          (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                          (search-forward "]{")
+                                          (point))))
+    ('keyword (string-match-p "^header-args" (org-element-property :value (org-element-context))))))
+;; Snippet Helpers:1 ends here
+
+;; [[file:config.org::*Snippet Helpers][Snippet Helpers:2]]
+(defun +yas/org-prompt-header-arg (arg question values)
+  "Prompt the user to set ARG header property to one of VALUES with QUESTION.
+The default value is identified and indicated. If either default is selected,
+or no selection is made: nil is returned."
+  (let* ((src-block-p (not (looking-back "^#\\+property:[ \t]+header-args:.*" (line-beginning-position))))
+         (default
+           (or
+            (cdr (assoc arg
+                        (if src-block-p
+                            (nth 2 (org-babel-get-src-block-info t))
+                          (org-babel-merge-params
+                           org-babel-default-header-args
+                           (let ((lang-headers
+                                  (intern (concat "org-babel-default-header-args:"
+                                                  (+yas/org-src-lang)))))
+                             (when (boundp lang-headers) (eval lang-headers t)))))))
+            ""))
+         default-value)
+    (setq values (mapcar
+                  (lambda (value)
+                    (if (string-match-p (regexp-quote value) default)
+                        (setq default-value
+                              (concat value " "
+                                      (propertize "(default)" 'face 'font-lock-doc-face)))
+                      value))
+                  values))
+    (let ((selection (consult--read question values :default default-value)))
+      (unless (or (string-match-p "(default)$" selection)
+                  (string= "" selection))
+        selection))))
+;; Snippet Helpers:2 ends here
+
+;; [[file:config.org::*Snippet Helpers][Snippet Helpers:3]]
+(defun +yas/org-src-lang ()
+  "Try to find the current language of the src/header at `point'.
+Return nil otherwise."
+  (let ((context (org-element-context)))
+    (pcase (org-element-type context)
+      ('src-block (org-element-property :language context))
+      ('inline-src-block (org-element-property :language context))
+      ('keyword (when (string-match "^header-args:\\([^ ]+\\)" (org-element-property :value context))
+                  (match-string 1 (org-element-property :value context)))))))
+
+(defun +yas/org-last-src-lang ()
+  "Return the language of the last src-block, if it exists."
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-backward "^[ \t]*#\\+begin_src" nil t)
+      (org-element-property :language (org-element-context)))))
+
+(defun +yas/org-most-common-no-property-lang ()
+  "Find the lang with the most source blocks that has no global header-args, else nil."
+  (let (src-langs header-langs)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+begin_src" nil t)
+        (push (+yas/org-src-lang) src-langs))
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+property: +header-args" nil t)
+        (push (+yas/org-src-lang) header-langs)))
+
+    (setq src-langs
+          (mapcar #'car
+                  ;; sort alist by frequency (desc.)
+                  (sort
+                   ;; generate alist with form (value . frequency)
+                   (cl-loop for (n . m) in (seq-group-by #'identity src-langs)
+                            collect (cons n (length m)))
+                   (lambda (a b) (> (cdr a) (cdr b))))))
+
+    (car (cl-set-difference src-langs header-langs :test #'string=))))
+;; Snippet Helpers:3 ends here
+
+;; [[file:config.org::*Translate capital keywords to lower case][Translate capital keywords to lower case:1]]
+(defun +org-syntax-convert-keyword-case-to-lower ()
+  "Convert all #+KEYWORDS to #+keywords."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (let ((count 0)
+          (case-fold-search nil))
+      (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+        (unless (s-matches-p "RESULTS" (match-string 0))
+          (replace-match (downcase (match-string 0)) t)
+          (setq count (1+ count))))
+      (message "Replaced %d occurances" count))))
+;; Translate capital keywords to lower case:1 ends here
+
+;; [[file:config.org::*Org notifier][Org notifier:1]]
+(use-package! org-wild-notifier
+  :hook (org-load . org-wild-notifier-mode)
+  :config
+  (setq org-wild-notifier-alert-time '(60 30)))
+;; Org notifier:1 ends here
+
+;; [[file:config.org::*Org menu][Org menu:1]]
+(use-package! org-menu
+  :commands (org-menu)
+  :init
+  (map! :localleader
+        :map org-mode-map
+        :desc "Org menu" "M" #'org-menu))
+;; Org menu:1 ends here
+
+;; [[file:config.org::*LSP in =src= blocks][LSP in =src= blocks:1]]
+(when (and (modulep! :tools lsp) (not (modulep! :tools lsp +eglot)))
+  (cl-defmacro +lsp-org-babel-enable (lang)
+    "Support LANG in org source code block."
+    ;; (setq centaur-lsp 'lsp-mode)
+    (cl-check-type lang stringp)
+    (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+           (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+      `(progn
+         (defun ,intern-pre (info)
+           (let ((file-name (->> info caddr (alist-get :file))))
+             (unless file-name
+               (setq file-name (make-temp-file "babel-lsp-")))
+             (setq buffer-file-name file-name)
+             (lsp-deferred)))
+         (put ',intern-pre 'function-documentation
+              (format "Enable lsp-mode in the buffer of org source block (%s)."
+                      (upcase ,lang)))
+         (if (fboundp ',edit-pre)
+             (advice-add ',edit-pre :after ',intern-pre)
+           (progn
+             (defun ,edit-pre (info)
+               (,intern-pre info))
+             (put ',edit-pre 'function-documentation
+                  (format "Prepare local buffer environment for org source block (%s)."
+                          (upcase ,lang))))))))
+
+  (defvar +org-babel-lang-list
+    '("go" "python" "ipython" "bash" "sh"))
+
+  (dolist (lang +org-babel-lang-list)
+    (eval `(+lsp-org-babel-enable ,lang))))
+;; LSP in =src= blocks:1 ends here
+
+;; [[file:config.org::*Sub-figures][Sub-figures:1]]
+(org-link-set-parameters
+ "subfig"
+ :follow (lambda (file) (find-file file))
+ :face '(:foreground "chocolate" :weight bold :underline t)
+ :display 'full
+ :export
+ (lambda (file desc backend)
+   (when (eq backend 'latex)
+     (if (string-match ">(\\(.+\\))" desc)
+         (concat "\\begin{subfigure}[b]"
+                 "\\caption{" (replace-regexp-in-string "\s+>(.+)" "" desc) "}"
+                 "\\includegraphics" "[" (match-string 1 desc) "]" "{" file "}" "\\end{subfigure}")
+       (format "\\begin{subfigure}\\includegraphics{%s}\\end{subfigure}" desc file)))))
+;; Sub-figures:1 ends here
+
+;; [[file:config.org::*LaTeX inline markup][LaTeX inline markup:1]]
+(org-add-link-type
+ "latex" nil
+ (lambda (path desc format)
+   (cond
+    ((eq format 'html)
+     (format "<span class=\"%s\">%s</span>" path desc))
+    ((eq format 'latex)
+     (format "\\%s{%s}" path desc)))))
+;; LaTeX inline markup:1 ends here
