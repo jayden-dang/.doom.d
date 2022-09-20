@@ -39,6 +39,24 @@
 (package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
 ;; Aggressive indent:1 ends here
 
+;; [[file:config.org::*Erefactor][Erefactor:1]]
+(package! erefactor
+  :recipe (:host github
+           :repo "mhayashi1120/Emacs-erefactor")
+  :pin "bfe27a1b8c7cac0fe054e76113e941efa3775fe8")
+;; Erefactor:1 ends here
+
+;; [[file:config.org::*Lorem ipsum][Lorem ipsum:1]]
+(package! emacs-lorem-ipsum
+  :recipe (:host github
+           :repo "jschaf/emacs-lorem-ipsum")
+  :pin "da75c155da327c7a7aedb80f5cfe409984787049")
+;; Lorem ipsum:1 ends here
+
+;; [[file:config.org::*Coverage test][Coverage test:1]]
+(package! cov :pin "cd3e1995c596cc227124db9537792d8329ffb696")
+;; Coverage test:1 ends here
+
 ;; [[file:config.org::*Unpin package][Unpin package:1]]
 (unpin! lsp-mode)
 ;; Unpin package:1 ends here

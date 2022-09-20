@@ -755,6 +755,18 @@ current buffer's, reload dir-locals."
 (add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
 ;; =dir-locals.el=:1 ends here
 
+;; [[file:config.org::*Erefactor][Erefactor:2]]
+(use-package! erefactor
+  :defer t)
+;; Erefactor:2 ends here
+
+;; [[file:config.org::*Lorem ipsum][Lorem ipsum:2]]
+(use-package! lorem-ipsum
+  :commands (lorem-ipsum-insert-sentences
+             lorem-ipsum-insert-paragraphs
+             lorem-ipsum-insert-list))
+;; Lorem ipsum:2 ends here
+
 ;; [[file:config.org::*Eglot][Eglot:1]]
 (after! eglot
   ;; A hack to make it works with projectile

@@ -1432,6 +1432,42 @@ current buffer's, reload dir-locals."
 (add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
 #+end_src
 
+*** Erefactor
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! erefactor
+  :recipe (:host github
+           :repo "mhayashi1120/Emacs-erefactor")
+  :pin "bfe27a1b8c7cac0fe054e76113e941efa3775fe8")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! erefactor
+  :defer t)
+#+end_src
+
+*** Lorem ipsum
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! emacs-lorem-ipsum
+  :recipe (:host github
+           :repo "jschaf/emacs-lorem-ipsum")
+  :pin "da75c155da327c7a7aedb80f5cfe409984787049")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! lorem-ipsum
+  :commands (lorem-ipsum-insert-sentences
+             lorem-ipsum-insert-paragraphs
+             lorem-ipsum-insert-list))
+#+end_src
+
+*** Coverage test
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! cov :pin "cd3e1995c596cc227124db9537792d8329ffb696")
+#+end_src
+
 ** Languages
 *** Language Server Protocol :lsp:
 **** Eglot :eglot:
