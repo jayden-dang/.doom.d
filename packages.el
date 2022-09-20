@@ -164,3 +164,7 @@
            :files ("interfaces/emacs/imaxima/*"))
   :pin "519ea34095e749634d3a188733a3ad284b593e12")
 ;; IMaxima:1 ends here
+
+;; [[file:config.org::*Python IDE][Python IDE:1]]
+(package! elpy :pin "de31d30003c515c25ff7bfd3a361c70c298f78bb")
+;; Python IDE:1 ends here
