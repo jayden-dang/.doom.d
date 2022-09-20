@@ -1499,3 +1499,26 @@ current buffer's, reload dir-locals."
   ;; Get manual from https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
   (setq x86-lookup-pdf (expand-file-name "x86-lookup/325383-sdm-vol-2abcd.pdf" doom-data-dir)))
 ;; Assembly:2 ends here
+
+;; [[file:config.org::*Devdocs][Devdocs:2]]
+(use-package! devdocs
+  :commands (devdocs-lookup devdocs-install)
+  :config
+  (setq devdocs-data-dir (expand-file-name "devdocs" doom-data-dir)))
+;; Devdocs:2 ends here
+
+;; [[file:config.org::*PKGBUILD][PKGBUILD:2]]
+(use-package! pkgbuild-mode
+  :commands (pkgbuild-mode)
+  :mode "/PKGBUILD$")
+;; PKGBUILD:2 ends here
+
+;; [[file:config.org::*LaTeX][LaTeX:2]]
+(use-package! aas
+  :commands aas-mode)
+;; LaTeX:2 ends here
+
+;; [[file:config.org::*Flycheck + Projectile][Flycheck + Projectile:2]]
+(use-package! flycheck-projectile
+  :commands flycheck-projectile-list-errors)
+;; Flycheck + Projectile:2 ends here

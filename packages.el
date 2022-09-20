@@ -211,3 +211,29 @@
 (package! riscv-mode :pin "8e335b9c93de93ed8dd063d702b0f5ad48eef6d7")
 (package! x86-lookup :pin "1573d61cc4457737b94624598a891c837fb52c16")
 ;; Assembly:1 ends here
+
+;; [[file:config.org::*Devdocs][Devdocs:1]]
+(package! devdocs
+  :recipe (:host github
+           :repo "astoff/devdocs.el"
+           :files ("*.el"))
+  :pin "61ce83b79dc64e2f99d7f016a09b97e14b331459")
+;; Devdocs:1 ends here
+
+;; [[file:config.org::*PKGBUILD][PKGBUILD:1]]
+(package! pkgbuild-mode :pin "9525be8ecbd3a0d0bc7cc27e6d0f403e111aa067")
+;; PKGBUILD:1 ends here
+
+;; [[file:config.org::*LaTeX][LaTeX:1]]
+(package! aas
+  :recipe (:host github
+           :repo "ymarco/auto-activating-snippets")
+  :pin "566944e3b336c29d3ac11cd739a954c9d112f3fb")
+;; LaTeX:1 ends here
+
+;; [[file:config.org::*Flycheck + Projectile][Flycheck + Projectile:1]]
+(package! flycheck-projectile
+  :recipe (:host github
+           :repo "nbfalcon/flycheck-projectile")
+  :pin "ce6e9e8793a55dace13d5fa13badab2dca3b5ddb")
+;; Flycheck + Projectile:1 ends here
