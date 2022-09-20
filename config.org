@@ -907,3 +907,24 @@ I'd like to have just the buffer name, then if applicable the project folder.
                                      project-name)))
            (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
 #+end_src
+
+* Completion & IDE :ide:
+*** Which key :key:
+Make =which-key= popup faster.
+
+#+begin_src emacs-lisp
+(setq which-key-idle-delay 0.5 ;; Default is 1.0
+      which-key-idle-secondary-delay 0.05) ;; Default is nil
+#+end_src
+
+- Tôi sử ăn cắp config này từ "tecosaur's config", nó giúp replace các evil
+  =prefix= với unicode symbok, giúp cho which-key xịn xò hơn.
+
+#+begin_src emacs-lisp
+(setq which-key-allow-multiple-replacements t)
+
+(after! which-key
+  (pushnew! which-key-replacement-alist
+            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
+            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
+#+end_src

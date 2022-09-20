@@ -336,3 +336,17 @@
                                      project-name)))
            (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
 ;; Window title:1 ends here
+
+;; [[file:config.org::*Which key][Which key:1]]
+(setq which-key-idle-delay 0.5 ;; Default is 1.0
+      which-key-idle-secondary-delay 0.05) ;; Default is nil
+;; Which key:1 ends here
+
+;; [[file:config.org::*Which key][Which key:2]]
+(setq which-key-allow-multiple-replacements t)
+
+(after! which-key
+  (pushnew! which-key-replacement-alist
+            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
+            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
+;; Which key:2 ends here
