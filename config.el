@@ -586,3 +586,34 @@
 
   (add-to-list 'treemacs-ignored-file-predicates #'+treemacs-ignore-filter))
 ;; Treemacs:1 ends here
+
+;; [[file:config.org::*Projectile][Projectile:1]]
+;; Run `M-x projectile-discover-projects-in-search-path' to reload paths from this variable
+(setq projectile-project-search-path
+      '("~/Dropbox/PhD/papers"
+        "~/Dropbox/PhD/workspace"
+        "~/Dropbox/PhD/workspace-no"
+        "~/Dropbox/PhD/workspace-no/ez-wheel/swd-starter-kit-repo"
+        ("~/myProjects/" . 2))) ;; ("dir" . depth)
+
+(setq projectile-ignored-projects
+      '("/tmp"
+        "~/"
+        "~/.cache"
+        "~/.doom.d"
+        "~/.emacs.d/.local/straight/repos/"))
+
+(setq +projectile-ignored-roots
+      '("~/.cache"
+        ;; No need for this one, as `doom-project-ignored-p' checks for files in `doom-local-dir'
+        "~/.emacs.d/.local/straight/"))
+
+(defun +projectile-ignored-project-function (filepath)
+  "Return t if FILEPATH is within any of `+projectile-ignored-roots'"
+  (require 'cl-lib)
+  (or (doom-project-ignored-p filepath) ;; Used by default by doom with `projectile-ignored-project-function'
+      (cl-some (lambda (root) (file-in-directory-p (expand-file-name filepath) (expand-file-name root)))
+          +projectile-ignored-roots)))
+
+(setq projectile-ignored-project-function #'+projectile-ignored-project-function)
+;; Projectile:1 ends here
