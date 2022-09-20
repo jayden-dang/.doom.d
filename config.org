@@ -2523,6 +2523,52 @@ View data frames better with
 (package! ess-view :pin "925cafd876e2cc37bc756bb7fcf3f34534b457e2")
 #+end_src
 
+** Semgrep
+Lightweight static analysis for many languages. Find bug variants with patterns
+that look like source code.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! semgrep
+  :disable t
+  :recipe (:host github
+           :repo "Ruin0x11/semgrep.el")
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+#+end_src
+
+** Assembly :asm:assembly:
+Add some packages for better assembly coding.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! nasm-mode :pin "65ca6546fc395711fac5b3b4299e76c2303d43a8")
+(package! haxor-mode :pin "6fa25a8e6b6a59481bc0354c2fe1e0ed53cbdc91")
+(package! mips-mode :pin "98795cdc81979821ac35d9f94ce354cd99780c67")
+(package! riscv-mode :pin "8e335b9c93de93ed8dd063d702b0f5ad48eef6d7")
+(package! x86-lookup :pin "1573d61cc4457737b94624598a891c837fb52c16")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! nasm-mode
+  :mode "\\.[n]*\\(asm\\|s\\)\\'")
+
+;; Get Haxor VM from https://github.com/krzysztof-magosa/haxor
+(use-package! haxor-mode
+  :mode "\\.hax\\'")
+
+(use-package! mips-mode
+  :mode "\\.mips\\'")
+
+(use-package! riscv-mode
+  :mode "\\.riscv\\'")
+
+(use-package! x86-lookup
+  :commands (x86-lookup)
+  :config
+  (when (modulep! :tools pdf)
+    (setq x86-lookup-browse-pdf-function 'x86-lookup-browse-pdf-pdf-tools))
+  ;; Get manual from https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+  (setq x86-lookup-pdf (expand-file-name "x86-lookup/325383-sdm-vol-2abcd.pdf" doom-data-dir)))
+#+end_src
+
 * Text
 * Rust format :rust:format:
 For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format

@@ -1476,3 +1476,26 @@ current buffer's, reload dir-locals."
                    :height 125
                    :italic t))))
 ;; Blamer:2 ends here
+
+;; [[file:config.org::*Assembly][Assembly:2]]
+(use-package! nasm-mode
+  :mode "\\.[n]*\\(asm\\|s\\)\\'")
+
+;; Get Haxor VM from https://github.com/krzysztof-magosa/haxor
+(use-package! haxor-mode
+  :mode "\\.hax\\'")
+
+(use-package! mips-mode
+  :mode "\\.mips\\'")
+
+(use-package! riscv-mode
+  :mode "\\.riscv\\'")
+
+(use-package! x86-lookup
+  :commands (x86-lookup)
+  :config
+  (when (modulep! :tools pdf)
+    (setq x86-lookup-browse-pdf-function 'x86-lookup-browse-pdf-pdf-tools))
+  ;; Get manual from https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+  (setq x86-lookup-pdf (expand-file-name "x86-lookup/325383-sdm-vol-2abcd.pdf" doom-data-dir)))
+;; Assembly:2 ends here
