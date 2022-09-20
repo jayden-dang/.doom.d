@@ -39,6 +39,36 @@
 (package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
 ;; Aggressive indent:1 ends here
 
+;; [[file:config.org::*Grammarly][Grammarly:1]]
+(package! grammarly
+  :recipe (:host github
+           :repo "emacs-grammarly/grammarly")
+  :pin "e47b370faace9ca081db0b87ae3bcfd73212c56d")
+;; Grammarly:1 ends here
+
+;; [[file:config.org::*Eglot][Eglot:1]]
+(package! eglot-grammarly
+  :disable (not (modulep! :tools lsp +eglot))
+  :recipe (:host github
+           :repo "emacs-grammarly/eglot-grammarly")
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+;; Eglot:1 ends here
+
+;; [[file:config.org::*LSP Mode][LSP Mode:1]]
+(package! lsp-grammarly
+  :disable (or (not (modulep! :tools lsp)) (modulep! :tools lsp +eglot))
+  :recipe (:host github
+           :repo "emacs-grammarly/lsp-grammarly")
+  :pin "eab5292037478c32e7d658fb5cba8b8fb6d72a7c")
+;; LSP Mode:1 ends here
+
+;; [[file:config.org::*Grammalecte][Grammalecte:1]]
+(package! flycheck-grammalecte
+  :recipe (:host github
+           :repo "milouse/flycheck-grammalecte")
+  :pin "314de13247710410f11d060a214ac4f400c02a71")
+;; Grammalecte:1 ends here
+
 ;; [[file:config.org::*Erefactor][Erefactor:1]]
 (package! erefactor
   :recipe (:host github

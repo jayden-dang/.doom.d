@@ -552,6 +552,145 @@
          '(not emacs-lisp-mode scheme-mode racket-mode))))
 ;; Ligatures:1 ends here
 
+;; [[file:config.org::*Spell-Fu][Spell-Fu:1]]
+(after! spell-fu
+  (defun +spell-fu-register-dictionary (lang)
+    "Add `LANG` to spell-fu multi-dict, with a personal dictionary."
+    ;; Add the dictionary
+    (spell-fu-dictionary-add (spell-fu-get-ispell-dictionary lang))
+    (let ((personal-dict-file (expand-file-name (format "aspell.%s.pws" lang) doom-user-dir)))
+      ;; Create an empty personal dictionary if it doesn't exists
+      (unless (file-exists-p personal-dict-file) (write-region "" nil personal-dict-file))
+      ;; Add the personal dictionary
+      (spell-fu-dictionary-add (spell-fu-get-personal-dictionary (format "%s-personal" lang) personal-dict-file))))
+
+  (add-hook 'spell-fu-mode-hook
+            (lambda ()
+              (+spell-fu-register-dictionary +my/lang-main)
+              (+spell-fu-register-dictionary +my/lang-secondary))))
+;; Spell-Fu:1 ends here
+
+;; [[file:config.org::*Proselint][Proselint:1]]
+(after! flycheck
+  (flycheck-define-checker proselint
+    "A linter for prose."
+    :command ("proselint" source-inplace)
+    :error-patterns
+    ((warning line-start (file-name) ":" line ":" column ": "
+              (id (one-or-more (not (any " "))))
+              (message) line-end))
+    :modes (text-mode markdown-mode gfm-mode org-mode))
+
+  ;; TODO: Can be enabled automatically for English documents using `guess-language'
+  (defun +flycheck-proselint-toggle ()
+    "Toggle Proselint checker for the current buffer."
+    (interactive)
+    (if (and (fboundp 'guess-language-buffer) (string= "en" (guess-language-buffer)))
+        (if (memq 'proselint flycheck-checkers)
+            (setq-local flycheck-checkers (delete 'proselint flycheck-checkers))
+          (setq-local flycheck-checkers (append flycheck-checkers '(proselint))))
+      (message "Proselint understands only English!"))))
+;; Proselint:1 ends here
+
+;; [[file:config.org::*Grammarly][Grammarly:2]]
+(use-package! grammarly
+  :config
+  (grammarly-load-from-authinfo))
+;; Grammarly:2 ends here
+
+;; [[file:config.org::*Eglot][Eglot:2]]
+(use-package! eglot-grammarly
+  :commands (+lsp-grammarly-load)
+  :init
+  (defun +lsp-grammarly-load ()
+    "Load Grammarly LSP server for Eglot."
+    (interactive)
+    (require 'eglot-grammarly)
+    (call-interactively #'eglot)))
+;; Eglot:2 ends here
+
+;; [[file:config.org::*LSP Mode][LSP Mode:2]]
+(use-package! lsp-grammarly
+  :commands (+lsp-grammarly-load +lsp-grammarly-toggle)
+  :init
+  (defun +lsp-grammarly-load ()
+    "Load Grammarly LSP server for LSP Mode."
+    (interactive)
+    (require 'lsp-grammarly)
+    (lsp-deferred)) ;; or (lsp)
+
+  (defun +lsp-grammarly-enabled-p ()
+    (not (member 'grammarly-ls lsp-disabled-clients)))
+
+  (defun +lsp-grammarly-enable ()
+    "Enable Grammarly LSP."
+    (interactive)
+    (when (not (+lsp-grammarly-enabled-p))
+      (setq lsp-disabled-clients (remove 'grammarly-ls lsp-disabled-clients))
+      (message "Enabled grammarly-ls"))
+    (+lsp-grammarly-load))
+
+  (defun +lsp-grammarly-disable ()
+    "Disable Grammarly LSP."
+    (interactive)
+    (when (+lsp-grammarly-enabled-p)
+      (add-to-list 'lsp-disabled-clients 'grammarly-ls)
+      (lsp-disconnect)
+      (message "Disabled grammarly-ls")))
+
+  (defun +lsp-grammarly-toggle ()
+    "Enable/disable Grammarly LSP."
+    (interactive)
+    (if (+lsp-grammarly-enabled-p)
+        (+lsp-grammarly-disable)
+      (+lsp-grammarly-enable)))
+
+  (after! lsp-mode
+    ;; Disable by default
+    (add-to-list 'lsp-disabled-clients 'grammarly-ls))
+
+  :config
+  (set-lsp-priority! 'grammarly-ls 1))
+;; LSP Mode:2 ends here
+
+;; [[file:config.org::*Grammalecte][Grammalecte:2]]
+(use-package! flycheck-grammalecte
+  :when nil ;; BUG: Disabled, there is a Python error
+  :commands (flycheck-grammalecte-correct-error-at-point
+             grammalecte-conjugate-verb
+             grammalecte-define
+             grammalecte-define-at-point
+             grammalecte-find-synonyms
+             grammalecte-find-synonyms-at-point)
+  :init
+  (setq grammalecte-settings-file (expand-file-name "grammalecte/grammalecte-cache.el" doom-data-dir)
+        grammalecte-python-package-directory (expand-file-name "grammalecte/grammalecte" doom-data-dir))
+
+  (setq flycheck-grammalecte-report-spellcheck t
+        flycheck-grammalecte-report-grammar t
+        flycheck-grammalecte-report-apos nil
+        flycheck-grammalecte-report-esp nil
+        flycheck-grammalecte-report-nbsp nil
+        flycheck-grammalecte-filters
+        '("(?m)^# ?-*-.+$"
+          ;; Ignore LaTeX equations (inline and block)
+          "\\$.*?\\$"
+          "(?s)\\\\begin{\\(?1:\\(?:equation.\\|align.\\)\\)}.*?\\\\end{\\1}"))
+
+  (map! :leader :prefix ("l" . "custom")
+        (:prefix ("g" . "grammalecte")
+         :desc "Correct error at point"     "p" #'flycheck-grammalecte-correct-error-at-point
+         :desc "Conjugate a verb"           "V" #'grammalecte-conjugate-verb
+         :desc "Define a word"              "W" #'grammalecte-define
+         :desc "Conjugate a verb at point"  "w" #'grammalecte-define-at-point
+         :desc "Find synonyms"              "S" #'grammalecte-find-synonyms
+         :desc "Find synonyms at point"     "s" #'grammalecte-find-synonyms-at-point))
+
+  :config
+  (grammalecte-download-grammalecte)
+  (flycheck-grammalecte-setup))
+;; Grammalecte:2 ends here
+
 ;; [[file:config.org::*Which key][Which key:1]]
 (setq which-key-idle-delay 0.5 ;; Default is 1.0
       which-key-idle-secondary-delay 0.05) ;; Default is nil
