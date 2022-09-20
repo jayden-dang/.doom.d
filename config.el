@@ -445,6 +445,12 @@
         (blamer-mode 1)))))
 ;; Zen (writeroom) mode:1 ends here
 
+;; [[file:config.org::*Highlight indent guides][Highlight indent guides:1]]
+(after! highlight-indent-guides
+  (setq highlight-indent-guides-character ?│
+        highlight-indent-guides-responsive 'top))
+;; Highlight indent guides:1 ends here
+
 ;; [[file:config.org::*Which key][Which key:1]]
 (setq which-key-idle-delay 0.5 ;; Default is 1.0
       which-key-idle-secondary-delay 0.05) ;; Default is nil
