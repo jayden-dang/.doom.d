@@ -301,3 +301,12 @@
            :repo "misohena/phscroll")
   :pin "65e00c89f078997e1a5665d069ad8b1e3b851d49")
 ;; Org additional packages:1 ends here
+
+;; [[file:config.org::*Fragtog][Fragtog:1]]
+(package! org-fragtog)
+;; Fragtog:1 ends here
+
+;; [[file:config.org::*Enabled some packages][Enabled some packages:1]]
+(package! editorconfig)
+(package! markdown-preview-mode)
+;; Enabled some packages:1 ends here

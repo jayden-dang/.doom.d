@@ -4,7 +4,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(latex-extra cdlatex org-link-beautify unidecode unicode-fonts modus-themes lsp-ltex lsp-grammarly flymake-grammarly flycheck-grammarly emojify ascii-table)))
+   '(engine-mode org-fragtog auctex-latexmk ox-latex-subfigure visual-regexp latex-math-preview latex-preview-pane latex-change-env lsp-latex latex-extra cdlatex org-link-beautify unidecode unicode-fonts modus-themes lsp-ltex lsp-grammarly flymake-grammarly flycheck-grammarly emojify ascii-table)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

@@ -53,6 +53,116 @@
   (consult-buffer))
 ;; Show list of buffer when splitting:1 ends here
 
+;;;###autoload
+(defun dqv/edit-zsh-configuration ()
+  (interactive)
+  (find-file "~/.zshrc"))
+
+;;;###autoload
+(defun dqv/use-eslint-from-node-modules ()
+    "Set local eslint if available."
+    (let* ((root (locate-dominating-file
+                  (or (buffer-file-name) default-directory)
+                  "node_modules"))
+           (eslint (and root
+                        (expand-file-name "node_modules/eslint/bin/eslint.js"
+                                          root))))
+      (when (and eslint (file-executable-p eslint))
+        (setq-local flycheck-javascript-eslint-executable eslint))))
+
+;;;###autoload
+(defun dqv/goto-match-paren (arg)
+  "Go to the matching if on (){}[], similar to vi style of % ."
+  (interactive "p")
+  (cond ((looking-at "[\[\(\{]") (evil-jump-item))
+        ((looking-back "[\]\)\}]" 1) (evil-jump-item))
+        ((looking-at "[\]\)\}]") (forward-char) (evil-jump-item))
+        ((looking-back "[\[\(\{]" 1) (backward-char) (evil-jump-item))
+        (t nil)))
+
+;;;###autoload
+(defun dqv/string-inflection-cycle-auto ()
+  "switching by major-mode"
+  (interactive)
+  (cond
+   ;; for emacs-lisp-mode
+   ((eq major-mode 'emacs-lisp-mode)
+    (string-inflection-all-cycle))
+   ;; for python
+   ((eq major-mode 'python-mode)
+    (string-inflection-python-style-cycle))
+   ;; for java
+   ((eq major-mode 'java-mode)
+    (string-inflection-java-style-cycle))
+   (t
+    ;; default
+    (string-inflection-all-cycle))))
+
+;; Current time and date
+(defvar current-date-time-format "%Y-%m-%d %H:%M:%S"
+  "Format of date to insert with `insert-current-date-time' func
+See help of `format-time-string' for possible replacements")
+
+(defvar current-time-format "%H:%M:%S"
+  "Format of date to insert with `insert-current-time' func.
+Note the weekly scope of the command's precision.")
+
+;;;###autoload
+(defun insert-current-date-time ()
+  "insert the current date and time into current buffer.
+Uses `current-date-time-format' for the formatting the date/time."
+  (interactive)
+  (insert (format-time-string current-date-time-format (current-time)))
+  )
+
+;;;###autoload
+(defun insert-current-time ()
+  "insert the current time (1-week scope) into the current buffer."
+  (interactive)
+  (insert (format-time-string current-time-format (current-time)))
+  )
+
+;;;###autoload
+(defun my/capitalize-first-char (&optional string)
+  "Capitalize only the first character of the input STRING."
+  (when (and string (> (length string) 0))
+    (let ((first-char (substring string nil 1))
+          (rest-str   (substring string 1)))
+      (concat (capitalize first-char) rest-str))))
+
+;;;###autoload
+(defun my/lowcase-first-char (&optional string)
+  "Capitalize only the first character of the input STRING."
+  (when (and string (> (length string) 0))
+    (let ((first-char (substring string nil 1))
+          (rest-str   (substring string 1)))
+      (concat first-char rest-str))))
+
+;;;###autoload
+(defun dqv/async-shell-command-silently (command)
+  "async shell command silently."
+  (interactive)
+  (let
+      ((display-buffer-alist
+        (list
+         (cons
+          "\\*Async Shell Command\\*.*"
+          (cons #'display-buffer-no-window nil)))))
+    (async-shell-command
+     command)))
+
+;; [[file:config.org::*Scroll page][Scroll page:1]]
+(defun scroll-half-page-down ()
+  "scroll down half the page"
+  (interactive)
+  (scroll-down (/ (window-body-height) 2)))
+
+(defun scroll-half-page-up ()
+  "scroll up half the page"
+  (interactive)
+  (scroll-up (/ (window-body-height) 2)))
+;; Scroll page:1 ends here
+
 ;; [[file:config.org::*Undo-fu][Undo-fu:1]]
 ;; Increase undo history limits even more
 (after! undo-fu
@@ -434,6 +544,259 @@
   (setq highlight-indent-guides-character ?│
         highlight-indent-guides-responsive 'top))
 ;; Highlight indent guides:1 ends here
+
+(global-set-key (kbd "<f1>") nil)        ; ns-print-buffer
+(global-set-key (kbd "<f2>") nil)        ; ns-print-buffer
+(define-key evil-normal-state-map (kbd ",") nil)
+(define-key evil-visual-state-map (kbd ",") nil)
+
+(global-set-key (kbd "<f1>") 'dqv-everything/body)
+(global-set-key (kbd "<f2>") 'rgrep)
+(global-set-key (kbd "<f5>") 'deadgrep)
+(global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
+;; (global-set-key (kbd "<f8>") 'quickrun)
+(global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
+(global-set-key (kbd "<S-f12>") '+vc/smerge-hydra/body)
+(global-set-key (kbd "M-z") 'zzz-to-char)
+;; (global-set-key (kbd "C-t") '+vterm/toggle)
+;; (global-set-key (kbd "C-S-t") '+vterm/here)
+;; (global-set-key (kbd "C-d") 'kill-current-buffer)
+;; (avy-setup-default)
+;; (global-set-key (kbd "C-c C-j") 'avy-resume)
+
+(setq doom-localleader-key ",")
+(map!
+;; avy
+:nv    "f"     #'avy-goto-char-2
+:nv    "F"     #'avy-goto-char
+:nv    "w"     #'avy-goto-word-1
+:nv    "W"     #'avy-goto-word-0
+
+;; view scroll mode
+:nv    "C-n"   #'scroll-half-page-up
+:nv    "C-p"   #'scroll-half-page-down
+
+:nv    "-"     #'evil-window-decrease-width
+:nv    "+"     #'evil-window-increase-width
+:nv    "C--"   #'evil-window-decrease-height
+:nv    "C-+"   #'evil-window-increase-height
+
+:nv    ")"     #'sp-forward-sexp
+:nv    "("     #'sp-backward-up-sexp
+:nv    "s-)"   #'sp-down-sexp
+:nv    "s-("   #'sp-backward-sexp
+:nv    "gd"    #'xref-find-definitions
+:nv    "gD"    #'xref-find-references
+:nv    "gb"    #'xref-pop-marker-stack
+
+:niv   "C-e"   #'evil-end-of-line
+:niv   "C-="   #'er/expand-region
+
+"C-;"          #'tiny-expand
+"C-a"          #'crux-move-beginning-of-line
+"C-s"          #'+default/search-buffer
+
+"C-c C-j"      #'avy-resume
+"C-c c x"      #'org-capture
+;; "C-c c j"      #'avy-resume
+
+"C-c f r"      #'dqv/indent-org-block-automatically
+
+"C-c h h"      #'dqv/org-html-export-to-html
+
+"C-c i d"      #'insert-current-date-time
+"C-c i t"      #'insert-current-time
+;; "C-c i d"      #'crux-insert-date
+"C-c i e"      #'emojify-inert-emoji
+"C-c i f"      #'js-doc-insert-function-doc
+"C-c i F"      #'js-doc-insert-file-doc
+
+"C-c o o"      #'crux-open-with
+"C-c o u"      #'crux-view-url
+"C-c o t"      #'crux-visit-term-buffer
+;; org-roam
+"C-c o r o"    #'org-roam-ui-open
+
+"C-c r r"      #'vr/replace
+"C-c r q"      #'vr/query-replace
+
+"C-c y y"      #'youdao-dictionary-search-at-point+
+
+;; Command/Window
+"s-k"          #'move-text-up
+"s-j"          #'move-text-down
+"s-i"          #'dqv/string-inflection-cycle-auto
+;; "s--"          #'sp-splice-sexp
+;; "s-_"          #'sp-rewrap-sexp
+
+"M-i"          #'parrot-rotate-next-word-at-point
+"M--"          #'dqv/goto-match-paren
+)
+
+(map! :leader
+      :n "SPC"  #'execute-extended-command
+      :n "."  #'dired-jump
+      :n ","  #'magit-status
+      :n "-"  #'goto-line
+      ;; (:prefix ("d" . "Debugger")
+      ;;  :n    "r"   #'dap-debug
+      ;;  :n    "l"   #'dap-debug-last
+      ;;  :n    "R"   #'dap-debug-recent
+      ;;  :n    "x"   #'dap-disconnect
+      ;;  :n    "a"   #'dap-breakpoint-add
+      ;;  :n    "t"   #'dap-breakpoint-toggle
+      ;;  :n    "d"   #'dap-delete-session
+      ;;  :n    "D"   #'dap-delete-all-sessions
+
+      ;;  )
+
+      (:prefix ("e" . "Exercise Coding Challenger")
+       :n    "l"     #'leetcode
+       :n    "d"     #'leetcode-daily
+       :n    "o"     #'leetcode-show-problem-in-browser
+       :n    "s"     #'leetcode-show-problem
+       )
+
+
+      (:prefix ("m" . "Treemacs")
+       :n     "t"           #'treemacs
+       :n     "df"           #'treemacs-delete-file
+       :n     "dp"           #'treemacs-remove-project-from-workspace
+       :n     "cd"           #'treemacs-create-dir
+       :n     "cf"           #'treemacs-create-file
+       :n     "a"           #'treemacs-add-project-to-workspace
+       :n     "wc"           #'treemacs-create-workspace
+       :n     "ws"           #'treemacs-switch-workspace
+       :n     "wd"           #'treemacs-remove-workspace
+       :n     "wf"           #'treemacs-rename-workspace
+       )
+
+      :nv "w -" #'evil-window-split
+      :nv "j" #'switch-to-buffer
+      :nv "wo" #'delete-other-windows
+      :nv "fd" #'doom/delete-this-file
+      :nv "ls" #'+lsp/switch-client
+      :nv "bR" #'rename-buffer
+      :nv "bx" #'doom/switch-to-scratch-buffer
+      )
+
+(map! :map dap-mode-map
+      :leader
+      :prefix ("d" . "dap")
+      ;; basics
+      :desc "dap next"          "n" #'dap-next
+      :desc "dap step in"       "i" #'dap-step-in
+      :desc "dap step out"      "o" #'dap-step-out
+      :desc "dap continue"      "c" #'dap-continue
+      :desc "dap hydra"         "h" #'dap-hydra
+      :desc "dap debug restart" "r" #'dap-debug-restart
+      :desc "dap debug"         "s" #'dap-debug
+
+      ;; debug
+      :prefix ("dd" . "Debug")
+      :desc "dap debug recent"  "r" #'dap-debug-recent
+      :desc "dap debug last"    "l" #'dap-debug-last
+
+      ;; eval
+      :prefix ("de" . "Eval")
+      :desc "eval"                "e" #'dap-eval
+      :desc "eval region"         "r" #'dap-eval-region
+      :desc "eval thing at point" "s" #'dap-eval-thing-at-point
+      :desc "add expression"      "a" #'dap-ui-expressions-add
+      :desc "remove expression"   "d" #'dap-ui-expressions-remove
+
+      :prefix ("db" . "Breakpoint")
+      :desc "dap breakpoint toggle"      "b" #'dap-breakpoint-toggle
+      :desc "dap breakpoint condition"   "c" #'dap-breakpoint-condition
+      :desc "dap breakpoint hit count"   "h" #'dap-breakpoint-hit-condition
+      :desc "dap breakpoint log message" "l" #'dap-breakpoint-log-message)
+
+(map! :map org-mode-map
+      ;; t
+      :nv "tt"          #'org-todo
+      :nv "tT"          #'counsel-org-tag
+
+      :nv "tcc"         #'org-toggle-checkbox
+      :nv "tcu"         #'org-update-checkbox-count
+
+      :nv "tpp"         #'org-priority
+      :nv "tpu"         #'org-priority-up
+      :nv "tpd"         #'org-priority-down
+
+
+      ;; C-c
+      "C-c a t" #'org-transclusion-add
+      ;; #'org-transclusion-mode
+      "C-c c i" #'org-clock-in
+      "C-c c o" #'org-clock-out
+      "C-c c h" #'counsel-org-clock-history
+      "C-c c g" #'counsel-org-clock-goto
+      "C-c c c" #'counsel-org-clock-context
+      "C-c c r" #'counsel-org-clock-rebuild-history
+      "C-c c p" #'org-preview-html-mode
+
+      "C-c f r" #'dqv/indent-org-block-automatically
+
+      "C-c e e" #'all-the-icons-insert
+      "C-c e a" #'all-the-icons-insert-faicon
+      "C-c e f" #'all-the-icons-insert-fileicon
+      "C-c e w" #'all-the-icons-insert-wicon
+      "C-c e o" #'all-the-icons-insert-octicon
+      "C-c e m" #'all-the-icons-insert-material
+      "C-c e i" #'all-the-icons-insert-alltheicon
+
+      "C-c g l" #'org-mac-grab-link
+
+      "C-c i u" #'org-mac-chrome-insert-frontmost-url
+      "C-c i c" #'copyright
+      "C-c i D" #'o-docs-insert
+
+      ;; `C-c s' links & search-engine
+      "C-c l l" #'org-super-links-link
+      "C-c l L" #'org-super-links-insert-link
+      "C-c l s" #'org-super-links-store-link
+      "C-c l d" #'org-super-links-quick-insert-drawer-link
+      "C-c l i" #'org-super-links-quick-insert-inline-link
+      "C-c l D" #'org-super-links-delete-link
+      "C-c l b" #'org-mark-ring-goto
+
+      "C-c q s" #'org-ql-search
+      "C-c q v" #'org-ql-view
+      "C-c q b" #'org-ql-sidebar
+      "C-c q r" #'org-ql-view-recent-items
+      "C-c q t" #'org-ql-sparse-tree
+
+      "C-c r f" #'org-refile-copy ;; copy current entry to another heading
+      "C-c r F" #'org-refile ;; like `org-refile-copy' but moving
+
+      "C-c w m" #'org-mind-map-write
+      "C-c w M" #'org-mind-map-write-current-tree
+
+      ;; org-roam, org-ref
+      ;; "C-c n l" #'org-roam-buffer-toggle
+      ;; "C-c n f" #'org-roam-node-find
+      ;; "C-c n g" #'org-roam-graph
+      ;; "C-c n i" #'org-roam-node-insert
+      ;; "C-c n c" #'org-roam-capture
+      ;; "C-c n j" #'org-roam-dailies-capture-today
+      "C-c n r a" #'org-roam-ref-add
+      "C-c n r f" #'org-roam-ref-find
+      "C-c n r d" #'org-roam-ref-remove
+      "C-c n r c" #'org-ref-insert-cite-link
+      "C-c n r l" #'org-ref-insert-label-link
+      "C-c n r i" #'org-ref-insert-link
+      "C-c n b c" #'org-bibtex-check-all
+      "C-c n b a" #'org-bibtex-create
+      )
+
+(map! :map deadgrep-mode-map
+      :nv "TAB" #'deadgrep-toggle-file-results
+      :nv "D"   #'deadgrep-directory
+      :nv "S"   #'deadgrep-search-term
+      :nv "N"   #'deadgrep--move-match
+      :nv "n"   #'deadgrep--move
+      :nv "o"   #'deadgrep-visit-result-other-window
+      :nv "r"   #'deadgrep-restart)
 
 ;; [[file:config.org::*File templates][File templates:1]]
 (set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
@@ -2467,10 +2830,10 @@ made into an image."
 (+scimax-toggle-latex-equation-numbering t)
 ;; Better equation numbering:1 ends here
 
-;; [[file:config.org::*Fragtog][Fragtog:1]]
+;; [[file:config.org::*Fragtog][Fragtog:2]]
 (use-package! org-fragtog
   :hook (org-mode . org-fragtog-mode))
-;; Fragtog:1 ends here
+;; Fragtog:2 ends here
 
 ;; [[file:config.org::*Org plot][Org plot:1]]
 (after! org-plot
@@ -2657,7 +3020,7 @@ set palette defined ( 0 '%s',\
 
 (add-to-list 'org-latex-packages-alist '("svgnames" "xcolor"))
 ;; (add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
-;; (add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
+(add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
 ;; Org LaTeX packages:1 ends here
 
 ;; [[file:config.org::*Export PDFs with syntax highlighting][Export PDFs with syntax highlighting:1]]
