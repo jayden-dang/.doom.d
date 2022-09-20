@@ -2629,3 +2629,182 @@ set palette defined ( 0 '%s',\
                          :node (org-roam-node-create :title title)
                          :props '(:finalize find-file)))))
 ;; Citar:1 ends here
+
+;; [[file:config.org::*General settings][General settings:1]]
+(setq org-export-headline-levels 5)
+;; General settings:1 ends here
+
+;; [[file:config.org::*General settings][General settings:2]]
+(require 'ox-extra)
+(ox-extras-activate '(ignore-headlines))
+;; General settings:2 ends here
+
+;; [[file:config.org::*General settings][General settings:3]]
+(setq org-export-creator-string
+      (format "Made with Emacs %s and Org %s" emacs-version (org-release)))
+;; General settings:3 ends here
+
+;; [[file:config.org::*Compiling][Compiling:1]]
+;; `org-latex-compilers' contains a list of possible values for the `%latex' argument.
+(setq org-latex-pdf-process
+      '("latexmk -shell-escape -pdf -quiet -f -%latex -interaction=nonstopmode -output-directory=%o %f"))
+;; Compiling:1 ends here
+
+;; [[file:config.org::*Org LaTeX packages][Org LaTeX packages:1]]
+;; 'svg' package depends on inkscape, imagemagik and ghostscript
+(when (+all (mapcar 'executable-find '("inkscape" "magick" "gs")))
+  (add-to-list 'org-latex-packages-alist '("" "svg")))
+
+(add-to-list 'org-latex-packages-alist '("svgnames" "xcolor"))
+;; (add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
+;; (add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
+;; Org LaTeX packages:1 ends here
+
+;; [[file:config.org::*Export PDFs with syntax highlighting][Export PDFs with syntax highlighting:1]]
+;; Should be configured per document, as a local variable
+;; (setq org-latex-listings 'minted)
+;; (add-to-list 'org-latex-packages-alist '("" "minted"))
+
+;; Default `minted` options, can be overwritten in file/dir locals
+(setq org-latex-minted-options
+      '(("frame"         "lines")
+        ("fontsize"      "\\footnotesize")
+        ("tabsize"       "2")
+        ("breaklines"    "true")
+        ("breakanywhere" "true") ;; break anywhere, no just on spaces
+        ("style"         "default")
+        ("bgcolor"       "GhostWhite")
+        ("linenos"       "true")))
+
+;; Link some org-mode blocks languages to lexers supported by minted
+;; via (pygmentize), you can see supported lexers by running this command
+;; in a terminal: `pygmentize -L lexers'
+(dolist (pair '((ipython    "python")
+                (jupyter    "python")
+                (scheme     "scheme")
+                (lisp-data  "lisp")
+                (conf-unix  "unixconfig")
+                (conf-space "unixconfig")
+                (authinfo   "unixconfig")
+                (gdb-script "unixconfig")
+                (conf-toml  "yaml")
+                (conf       "ini")
+                (gitconfig  "ini")
+                (systemd    "ini")))
+  (unless (member pair org-latex-minted-langs)
+    (add-to-list 'org-latex-minted-langs pair)))
+;; Export PDFs with syntax highlighting:1 ends here
+
+;; [[file:config.org::*Class templates][Class templates:1]]
+(after! ox-latex
+  (add-to-list
+   'org-latex-classes
+   '("scr-article"
+     "\\documentclass{scrartcl}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("lettre"
+     "\\documentclass{lettre}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("blank"
+     "[NO-DEFAULT-PACKAGES]\n[NO-PACKAGES]\n[EXTRA]"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("IEEEtran"
+     "\\documentclass{IEEEtran}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("ieeeconf"
+     "\\documentclass{ieeeconf}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("sagej"
+     "\\documentclass{sagej}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis"
+     "\\documentclass[11pt]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis-fr"
+     "\\documentclass[french,12pt,a4paper]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}"))))
+
+(setq org-latex-default-class "article")
+
+;; org-latex-tables-booktabs t
+;; org-latex-reference-command "\\cref{%s}")
+;; Class templates:1 ends here
+
+;; [[file:config.org::*Export multi-files Org documents][Export multi-files Org documents:2]]
+(defvar +org-export-to-pdf-main-file nil
+  "The main (entry point) Org file for a multi-files document.")
+
+(advice-add
+ 'org-latex-export-to-pdf :around
+ (lambda (orig-fn &rest orig-args)
+   (message
+    "PDF exported to: %s."
+    (let ((main-file (or (bound-and-true-p +org-export-to-pdf-main-file) "main.org")))
+      (if (file-exists-p (expand-file-name main-file))
+          (with-current-buffer (find-file-noselect main-file)
+            (apply orig-fn orig-args))
+        (apply orig-fn orig-args))))))
+;; Export multi-files Org documents:2 ends here
+
+;; [[file:config.org::*Hugo][Hugo:1]]
+(setq time-stamp-active t
+      time-stamp-start  "#\\+lastmod:[ \t]*"
+      time-stamp-end    "$"
+      time-stamp-format "%04Y-%02m-%02d")
+
+(add-hook 'before-save-hook 'time-stamp nil)
+(setq org-hugo-auto-set-lastmod t)
+;; Hugo:1 ends here

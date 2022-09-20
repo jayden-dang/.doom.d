@@ -3975,6 +3975,255 @@ example.
                          :props '(:finalize find-file)))))
 #+end_src
 
+*** Exporting
+**** General settings
+By default, Org only exports the first three levels of headings as /headings/, the
+rest is considered as paragraphs. Let's increase this to 5 levels.
+
+#+begin_src emacs-lisp
+(setq org-export-headline-levels 5)
+#+end_src
+
+Let's make use of the ~:ignore:~ tag from =ox-extra=, which provides a way to ignore
+exporting a heading, while exporting the content residing under it (different
+from ~:noexport:~).
+
+#+begin_src emacs-lisp
+(require 'ox-extra)
+(ox-extras-activate '(ignore-headlines))
+#+end_src
+
+#+begin_src emacs-lisp
+(setq org-export-creator-string
+      (format "Made with Emacs %s and Org %s" emacs-version (org-release)))
+#+end_src
+
+**** LaTeX export
+***** Compiling
+
+#+begin_src emacs-lisp
+;; `org-latex-compilers' contains a list of possible values for the `%latex' argument.
+(setq org-latex-pdf-process
+      '("latexmk -shell-escape -pdf -quiet -f -%latex -interaction=nonstopmode -output-directory=%o %f"))
+#+end_src
+
+***** Org LaTeX packages
+
+#+begin_src emacs-lisp
+;; 'svg' package depends on inkscape, imagemagik and ghostscript
+(when (+all (mapcar 'executable-find '("inkscape" "magick" "gs")))
+  (add-to-list 'org-latex-packages-alist '("" "svg")))
+
+(add-to-list 'org-latex-packages-alist '("svgnames" "xcolor"))
+;; (add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
+;; (add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
+#+end_src
+
+***** Export PDFs with syntax highlighting
+This is for code syntax highlighting in export. You need to use =-shell-escape=
+with latex, and install the =python-pygments= package.
+
+#+begin_src emacs-lisp
+;; Should be configured per document, as a local variable
+;; (setq org-latex-listings 'minted)
+;; (add-to-list 'org-latex-packages-alist '("" "minted"))
+
+;; Default `minted` options, can be overwritten in file/dir locals
+(setq org-latex-minted-options
+      '(("frame"         "lines")
+        ("fontsize"      "\\footnotesize")
+        ("tabsize"       "2")
+        ("breaklines"    "true")
+        ("breakanywhere" "true") ;; break anywhere, no just on spaces
+        ("style"         "default")
+        ("bgcolor"       "GhostWhite")
+        ("linenos"       "true")))
+
+;; Link some org-mode blocks languages to lexers supported by minted
+;; via (pygmentize), you can see supported lexers by running this command
+;; in a terminal: `pygmentize -L lexers'
+(dolist (pair '((ipython    "python")
+                (jupyter    "python")
+                (scheme     "scheme")
+                (lisp-data  "lisp")
+                (conf-unix  "unixconfig")
+                (conf-space "unixconfig")
+                (authinfo   "unixconfig")
+                (gdb-script "unixconfig")
+                (conf-toml  "yaml")
+                (conf       "ini")
+                (gitconfig  "ini")
+                (systemd    "ini")))
+  (unless (member pair org-latex-minted-langs)
+    (add-to-list 'org-latex-minted-langs pair)))
+#+end_src
+
+***** Class templates
+
+#+begin_src emacs-lisp :noweb no-export
+(after! ox-latex
+  (add-to-list
+   'org-latex-classes
+   '("scr-article"
+     "\\documentclass{scrartcl}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("lettre"
+     "\\documentclass{lettre}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("blank"
+     "[NO-DEFAULT-PACKAGES]\n[NO-PACKAGES]\n[EXTRA]"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("IEEEtran"
+     "\\documentclass{IEEEtran}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("ieeeconf"
+     "\\documentclass{ieeeconf}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("sagej"
+     "\\documentclass{sagej}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis"
+     "\\documentclass[11pt]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis-fr"
+     "\\documentclass[french,12pt,a4paper]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}"))))
+
+(setq org-latex-default-class "article")
+
+;; org-latex-tables-booktabs t
+;; org-latex-reference-command "\\cref{%s}")
+#+end_src
+
+***** Export multi-files Org documents
+Let's say we have a multi-files document, with =main.org= as the entry point.
+Supposing a document with a structure like this:
+
+#+name: multi-files-org
+#+begin_src dot :results value file graphics :file "assets/multi-files-org.svg" :exports none
+digraph G {
+  node [color=black, fillcolor=white, shape=note, style=filled, fontname="Lato"];
+
+  main   [label="main.org", fillcolor=lightgray]
+  intro  [label="intro.org"]
+  chap1  [label="chap1.org"]
+  chap2  [label="chap2.org"]
+  chap21 [label="chap2-part1.org"]
+  chap22 [label="chap2-part2.org"]
+  chapn  [label="chapN.org"]
+
+  {main}  -> {intro chap1 chap2 chapn}
+  {chap2} -> {chap21 chap22}
+}
+#+end_src
+
+#+caption: Example of a multi-files document structure
+#+attr_latex: :width 0.55\linewidth
+[[file:assets/multi-files-org.svg]]
+
+Files =intro.org=, =chap1.org=, ... are included in =main.org= using the Org command
+src_org{#+include: chap1.org}. In such a setup, we will spend most of our time
+writing in a chapter files, and not the =main.org=, where when want to export the
+document, we would need to open the top-level file =main.org= before exporting.
+
+A quick solution is *to admit the following convention*:
+
+#+begin_quote
+If a file named =main.org= is present beside any other Org file, it should be
+considered as the entry point; and whenever we export to PDF (from any of the
+Org files like: =intro.org=, =chap1.org=, ...), we automatically jump to the
+=main.org=, and run the export there.
+#+end_quote
+
+This can be achieved by adding an Emacs-Lisp /advice/ around the
+src_elisp{(org-latex-export-to-pdf)} to switch to =main.org= (if it exists) before
+running the export.
+
+You can also set the variable =+org-export-to-pdf-main-file= to the main file, in
+=.dir-locals.el= or as a file local variable.
+
+#+begin_src emacs-lisp
+(defvar +org-export-to-pdf-main-file nil
+  "The main (entry point) Org file for a multi-files document.")
+
+(advice-add
+ 'org-latex-export-to-pdf :around
+ (lambda (orig-fn &rest orig-args)
+   (message
+    "PDF exported to: %s."
+    (let ((main-file (or (bound-and-true-p +org-export-to-pdf-main-file) "main.org")))
+      (if (file-exists-p (expand-file-name main-file))
+          (with-current-buffer (find-file-noselect main-file)
+            (apply orig-fn orig-args))
+        (apply orig-fn orig-args))))))
+#+end_src
+
+**** Hugo
+Update files with last modified date, when ~#+lastmod:~ is available
+
+#+begin_src emacs-lisp
+(setq time-stamp-active t
+      time-stamp-start  "#\\+lastmod:[ \t]*"
+      time-stamp-end    "$"
+      time-stamp-format "%04Y-%02m-%02d")
+
+(add-hook 'before-save-hook 'time-stamp nil)
+(setq org-hugo-auto-set-lastmod t)
+#+end_src
+
 * Rust format :rust:format:
 For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format
 settings, I like to set it to:
