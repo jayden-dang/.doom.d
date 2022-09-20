@@ -269,3 +269,65 @@
         :prefix "t" ;; toggle
         :desc "Toggle Modus theme" "m" #'modus-themes-toggle))
 ;; Modus themes:2 ends here
+
+;; [[file:config.org::*Clock][Clock:1]]
+(after! doom-modeline
+  (setq display-time-string-forms
+        '((propertize (concat " 🕘 " 24-hours ":" minutes))))
+  (display-time-mode 1) ; Enable time in the mode-line
+
+  ;; Add padding to the right
+  (doom-modeline-def-modeline 'main
+   '(bar workspace-name window-number modals matches follow buffer-info remote-host buffer-position word-count parrot selection-info)
+   '(objed-state misc-info persp-name battery grip irc mu4e gnus github debug repl lsp minor-modes input-method indent-info buffer-encoding major-mode process vcs checker "   ")))
+;; Clock:1 ends here
+
+;; [[file:config.org::*Battery][Battery:1]]
+(after! doom-modeline
+  (let ((battery-str (battery)))
+    (unless (or (equal "Battery status not available" battery-str)
+                (string-match-p (regexp-quote "unknown") battery-str)
+                (string-match-p (regexp-quote "N/A") battery-str))
+      (display-battery-mode 1))))
+;; Battery:1 ends here
+
+;; [[file:config.org::*Mode line customization][Mode line customization:1]]
+(after! doom-modeline
+  (setq doom-modeline-bar-width 4
+        doom-modeline-mu4e t
+        doom-modeline-major-mode-icon t
+        doom-modeline-major-mode-color-icon t
+        doom-modeline-buffer-file-name-style 'truncate-upto-project))
+;; Mode line customization:1 ends here
+
+;; [[file:config.org::*Set transparency][Set transparency:1]]
+(set-frame-parameter (selected-frame) 'alpha '(97 100))
+(add-to-list 'default-frame-alist '(alpha 97 100))
+;; Set transparency:1 ends here
+
+;; [[file:config.org::*Custom splash image][Custom splash image:1]]
+(setq fancy-splash-image (expand-file-name "assets/doom-emacs-gray.svg" doom-user-dir))
+;; Custom splash image:1 ends here
+
+;; [[file:config.org::*Dashboard][Dashboard:1]]
+(remove-hook '+doom-dashboard-functions #'doom-dashboard-widget-shortmenu)
+(remove-hook '+doom-dashboard-functions #'doom-dashboard-widget-footer)
+(add-hook! '+doom-dashboard-mode-hook (hl-line-mode -1))
+(setq-hook! '+doom-dashboard-mode-hook evil-normal-state-cursor (list nil))
+;; Dashboard:1 ends here
+
+;; [[file:config.org::*Window title][Window title:1]]
+(setq frame-title-format
+      '(""
+        (:eval
+         (if (s-contains-p org-roam-directory (or buffer-file-name ""))
+             (replace-regexp-in-string ".*/[0-9]*-?" "☰ "
+                                       (subst-char-in-string ?_ ?\s buffer-file-name))
+           "%b"))
+        (:eval
+         (when-let* ((project-name (projectile-project-name))
+                     (project-name (if (string= "-" project-name)
+                                       (ignore-errors (file-name-base (string-trim-right (vc-root-dir))))
+                                     project-name)))
+           (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
+;; Window title:1 ends here
