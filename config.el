@@ -132,3 +132,41 @@
 (after! epa
   (setq-default epa-file-encrypt-to '("F2204E74F9D848C2")))
 ;; Secrets:1 ends here
+
+;; [[file:config.org::*Initialization][Initialization:1]]
+(defun +daemon-startup ()
+  ;; mu4e
+  (when (require 'mu4e nil t)
+    ;; Automatically start `mu4e' in background.
+    (when (load! "mu-lock.el" (expand-file-name "email/mu4e/autoload" doom-modules-dir) t)
+      (setq +mu4e-lock-greedy t
+            +mu4e-lock-relaxed t)
+      (when (+mu4e-lock-available t)
+        ;; Check each 5m, if `mu4e' if closed, start it in background.
+        (run-at-time nil ;; Launch now
+                     (* 60 5) ;; Check each 5 minutes
+                     (lambda ()
+                       (when (and (not (mu4e-running-p)) (+mu4e-lock-available))
+                         (mu4e--start)
+                         (message "Started `mu4e' in background.")))))))
+
+  ;; RSS
+  (when (require 'elfeed nil t)
+    (run-at-time nil (* 2 60 60) #'elfeed-update))) ;; Check every 2h
+
+(when (daemonp)
+  ;; At daemon startup
+  (add-hook 'emacs-startup-hook #'+daemon-startup)
+
+  ;; After creating a new frame (via emacsclient)
+  ;; Reload Doom's theme
+  (add-hook 'server-after-make-frame-hook #'doom/reload-theme))
+;; Initialization:1 ends here
+
+;; [[file:config.org::*Save recent files][Save recent files:1]]
+(when (daemonp)
+  (add-hook! '(delete-frame-functions delete-terminal-functions)
+    (let ((inhibit-message t))
+      (recentf-save-list)
+      (savehist-save))))
+;; Save recent files:1 ends here

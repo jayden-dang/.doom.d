@@ -663,3 +663,52 @@ instead of the default 2 hours.
 (after! epa
   (setq-default epa-file-encrypt-to '("F2204E74F9D848C2")))
 #+end_src
+
+* Emacs daemon :daemon:
+** Initialization :init:
+
+#+begin_src emacs-lisp
+(defun +daemon-startup ()
+  ;; mu4e
+  (when (require 'mu4e nil t)
+    ;; Automatically start `mu4e' in background.
+    (when (load! "mu-lock.el" (expand-file-name "email/mu4e/autoload" doom-modules-dir) t)
+      (setq +mu4e-lock-greedy t
+            +mu4e-lock-relaxed t)
+      (when (+mu4e-lock-available t)
+        ;; Check each 5m, if `mu4e' if closed, start it in background.
+        (run-at-time nil ;; Launch now
+                     (* 60 5) ;; Check each 5 minutes
+                     (lambda ()
+                       (when (and (not (mu4e-running-p)) (+mu4e-lock-available))
+                         (mu4e--start)
+                         (message "Started `mu4e' in background.")))))))
+
+  ;; RSS
+  (when (require 'elfeed nil t)
+    (run-at-time nil (* 2 60 60) #'elfeed-update))) ;; Check every 2h
+
+(when (daemonp)
+  ;; At daemon startup
+  (add-hook 'emacs-startup-hook #'+daemon-startup)
+
+  ;; After creating a new frame (via emacsclient)
+  ;; Reload Doom's theme
+  (add-hook 'server-after-make-frame-hook #'doom/reload-theme))
+#+end_src
+
+** Tweaks :tweak:
+*** Save recent files :recentf:
+When editing files with Emacs client, the files does not get stored by =recentf=,
+making Emacs forgets about recently opened files. A quick fix is to hook the
+src_elisp{recentf-save-list} command to the src_elisp{delete-frame-functions}
+and src_elisp{delete-terminal-functions} which gets executed each time a
+frame/terminal is deleted.
+
+#+begin_src emacs-lisp
+(when (daemonp)
+  (add-hook! '(delete-frame-functions delete-terminal-functions)
+    (let ((inhibit-message t))
+      (recentf-save-list)
+      (savehist-save))))
+#+end_src
