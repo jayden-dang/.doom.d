@@ -3,7 +3,7 @@
 #+subtitle: Emacs configuration for work and life!
 #+author: Dang Quang Vu
 #+email: vugomars@gmail.com
-#+lastmod: 2022-09-20
+#+lastmod: 2022-09-21
 #+options: title:t author:t email:t toc:t date:t tags:nil
 #+property: header-args:emacs-lisp :tangle yes :comments link
 #+property: header-args:elisp :exports code
@@ -11,6 +11,7 @@
 #+property: header-args :tangle no :results silent :eval no-export
 #+startup: fold noindent
 #+latex_compiler: xelatex
+#+latex_header: \usepackage{xcolor}
 
 
 
@@ -1885,7 +1886,7 @@ Use either [[https://github.com/emacs-grammarly/eglot-grammarly][eglot-grammarly
   (set-lsp-priority! 'grammarly-ls 1))
 #+end_src
 
-*** Grammalecte :french:grammar:
+*** Grammalecte :grammar:
 
 #+begin_src emacs-lisp :tangle packages.el
 (package! flycheck-grammalecte
@@ -2636,6 +2637,8 @@ Check for everything!
 #+end_src
 
 *** Solidity :eth:solidity:
+- Bạn cần cài đặt 2 gói package từ brew. =solidity-parse= và
+  =prettier-plugin-solidity= và nhớ đảm bảo là bạn đã cài đặt =prettier=.
 **** Company
 #+begin_src emacs-lisp
 (use-package! company-solidity
@@ -2821,6 +2824,10 @@ session, to do so, I define a helper function to clear data stored in the
      #+end_src
 
 *** leetcode :leetcode:
+#+begin_src emacs-lisp :tangle packages.el
+(package! leetcode)
+#+end_src
+
 #+begin_src emacs-lisp
 (after! leetcode
   (setq leetcode-prefer-language "rust"
@@ -4997,4 +5004,11 @@ todo = "Always"
 #+begin_src emacs-lisp :tangle packages.el
 (package! editorconfig)
 (package! markdown-preview-mode)
+#+end_src
+
+** Config Mongodb
+#+name: Mongodb Enviroment
+#+begin_src shell :comments no :tangle ~/.zshrc
+export PATH="/usr/local/bin:/usr/local/mongodb/bin:$PATH"
+alias mongod="mongod --dbpath ~/Documents/mongodb"
 #+end_src

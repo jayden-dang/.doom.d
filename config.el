@@ -1814,14 +1814,14 @@ current buffer's, reload dir-locals."
   (engine-mode 1))
 ;; engine-mode:2 ends here
 
-;; [[file:config.org::*leetcode][leetcode:1]]
+;; [[file:config.org::*leetcode][leetcode:2]]
 (after! leetcode
   (setq leetcode-prefer-language "rust"
         leetcode-prefer-sql "mysql"
         leetcode-save-solutions t
         leetcode-directory "~/Dropbox/vugomars/leetcode")
   (set-popup-rule! "^\\*leetcode" :actions '(open-popup-on-side-or-below)))
-;; leetcode:1 ends here
+;; leetcode:2 ends here
 
 ;; [[file:config.org::*bm][bm:2]]
 (use-package bm

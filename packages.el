@@ -157,6 +157,10 @@
 (package! engine-mode)
 ;; engine-mode:1 ends here
 
+;; [[file:config.org::*leetcode][leetcode:1]]
+(package! leetcode)
+;; leetcode:1 ends here
+
 ;; [[file:config.org::*bm][bm:1]]
 (package! bm)
 ;; bm:1 ends here
