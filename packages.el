@@ -168,3 +168,26 @@
 ;; [[file:config.org::*Python IDE][Python IDE:1]]
 (package! elpy :pin "de31d30003c515c25ff7bfd3a361c70c298f78bb")
 ;; Python IDE:1 ends here
+
+;; [[file:config.org::*WIP Company for commit messages][WIP Company for commit messages:1]]
+(package! company-conventional-commits
+  :recipe `(:local-repo ,(expand-file-name "lisp/company-conventional-commits" doom-user-dir)))
+;; WIP Company for commit messages:1 ends here
+
+;; [[file:config.org::*Pretty graph][Pretty graph:1]]
+(package! magit-pretty-graph
+  :recipe (:host github
+           :repo "georgek/magit-pretty-graph")
+  :pin "26dc5535a20efe781b172bac73f14a5ebe13efa9")
+;; Pretty graph:1 ends here
+
+;; [[file:config.org::*Repo][Repo:1]]
+(package! repo :pin "e504aa831bfa38ddadce293face28b3c9d9ff9b7")
+;; Repo:1 ends here
+
+;; [[file:config.org::*Blamer][Blamer:1]]
+(package! blamer
+  :recipe (:host github
+           :repo "artawower/blamer.el")
+  :pin "99b43779341af0d924bfe2a9103993a6b9e3d3b2")
+;; Blamer:1 ends here

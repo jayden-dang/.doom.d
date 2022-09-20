@@ -2412,6 +2412,129 @@ Stolen from [[https://www.reddit.com/r/emacs/comments/26c71k/comment/chq2r8m/?ut
   (elpy-enable))
 #+end_src
 
+** Scheme :scheme:geiser:
+
+#+begin_src emacs-lisp
+(after! geiser
+  (setq geiser-default-implementation 'guile
+        geiser-chez-binary "chez-scheme")) ;; default is "scheme"
+#+end_src
+
+** Git & VC :git:vc:
+*** Magit :magit:
+
+#+begin_src emacs-lisp
+(after! code-review
+  (setq code-review-auth-login-marker 'forge))
+#+end_src
+
+**** Granular diff-highlights for /all/ hunks
+
+#+begin_src emacs-lisp
+(after! magit
+  ;; Disable if it causes performance issues
+  (setq magit-diff-refine-hunk t))
+#+end_src
+
+**** Gravatars
+
+#+begin_src emacs-lisp
+(after! magit
+  ;; Show gravatars
+  (setq magit-revision-show-gravatars '("^Author:     " . "^Commit:     ")))
+#+end_src
+
+**** WIP Company for commit messages
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! company-conventional-commits
+  :recipe `(:local-repo ,(expand-file-name "lisp/company-conventional-commits" doom-user-dir)))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! company-conventional-commits
+  :after (magit company)
+  :config
+  (add-hook
+   'git-commit-setup-hook
+   (lambda ()
+     (add-to-list 'company-backends 'company-conventional-commits))))
+#+end_src
+
+**** Pretty graph
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! magit-pretty-graph
+  :recipe (:host github
+           :repo "georgek/magit-pretty-graph")
+  :pin "26dc5535a20efe781b172bac73f14a5ebe13efa9")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! magit-pretty-graph
+  :after magit
+  :init
+  (setq magit-pg-command
+        (concat "git --no-pager log"
+                " --topo-order --decorate=full"
+                " --pretty=format:\"%H%x00%P%x00%an%x00%ar%x00%s%x00%d\""
+                " -n 2000")) ;; Increase the default 100 limit
+
+  (map! :localleader
+        :map (magit-mode-map)
+        :desc "Magit pretty graph" "p" (cmd! (magit-pg-repo (magit-toplevel)))))
+#+end_src
+
+*** Repo :repo:
+This adds Emacs integration of =repo=, The Multiple Git Repository Tool. Make sure
+the [[https://gerrit.googlesource.com/git-repo][repo]] tool is installed, if not, =pacman -S repo= on Arch-based distributions,
+or directly with:
+
+#+begin_example shell :tangle no :eval no
+REPO_PATH="$HOME/.local/bin/repo"
+curl "https://storage.googleapis.com/git-repo-downloads/repo" > "${REPO_PATH}"
+chmod a+x "${REPO_PATH}"
+#+end_example
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! repo :pin "e504aa831bfa38ddadce293face28b3c9d9ff9b7")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! repo
+  :when REPO-P
+  :commands repo-status)
+#+end_src
+
+*** Blamer :blame:
+Display Git information (author, date, message...) for current line
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! blamer
+  :recipe (:host github
+           :repo "artawower/blamer.el")
+  :pin "99b43779341af0d924bfe2a9103993a6b9e3d3b2")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! blamer
+  :commands (blamer-mode)
+  ;; :hook ((prog-mode . blamer-mode))
+  :custom
+  (blamer-idle-time 0.3)
+  (blamer-min-offset 60)
+  (blamer-prettify-time-p t)
+  (blamer-entire-formatter "    %s")
+  (blamer-author-formatter " %s ")
+  (blamer-datetime-formatter "[%s], ")
+  (blamer-commit-formatter "“%s”")
+  :custom-face
+  (blamer-face ((t :foreground "#7a88cf"
+                   :background nil
+                   :height 125
+                   :italic t))))
+#+end_src
+
 * Text
 * Rust format :rust:format:
 For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format

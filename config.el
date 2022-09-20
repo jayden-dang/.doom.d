@@ -1419,3 +1419,76 @@ current buffer's, reload dir-locals."
   :config
   (elpy-enable))
 ;; Python IDE:2 ends here
+
+;; [[file:config.org::*Scheme][Scheme:1]]
+(after! geiser
+  (setq geiser-default-implementation 'guile
+        geiser-chez-binary "chez-scheme")) ;; default is "scheme"
+;; Scheme:1 ends here
+
+;; [[file:config.org::*Magit][Magit:1]]
+(after! code-review
+  (setq code-review-auth-login-marker 'forge))
+;; Magit:1 ends here
+
+;; [[file:config.org::*Granular diff-highlights for /all/ hunks][Granular diff-highlights for /all/ hunks:1]]
+(after! magit
+  ;; Disable if it causes performance issues
+  (setq magit-diff-refine-hunk t))
+;; Granular diff-highlights for /all/ hunks:1 ends here
+
+;; [[file:config.org::*Gravatars][Gravatars:1]]
+(after! magit
+  ;; Show gravatars
+  (setq magit-revision-show-gravatars '("^Author:     " . "^Commit:     ")))
+;; Gravatars:1 ends here
+
+;; [[file:config.org::*WIP Company for commit messages][WIP Company for commit messages:2]]
+(use-package! company-conventional-commits
+  :after (magit company)
+  :config
+  (add-hook
+   'git-commit-setup-hook
+   (lambda ()
+     (add-to-list 'company-backends 'company-conventional-commits))))
+;; WIP Company for commit messages:2 ends here
+
+;; [[file:config.org::*Pretty graph][Pretty graph:2]]
+(use-package! magit-pretty-graph
+  :after magit
+  :init
+  (setq magit-pg-command
+        (concat "git --no-pager log"
+                " --topo-order --decorate=full"
+                " --pretty=format:\"%H%x00%P%x00%an%x00%ar%x00%s%x00%d\""
+                " -n 2000")) ;; Increase the default 100 limit
+
+  (map! :localleader
+        :map (magit-mode-map)
+        :desc "Magit pretty graph" "p" (cmd! (magit-pg-repo (magit-toplevel)))))
+;; Pretty graph:2 ends here
+
+;; [[file:config.org::*Repo][Repo:2]]
+(use-package! repo
+  :when REPO-P
+  :commands repo-status)
+;; Repo:2 ends here
+
+;; [[file:config.org::*Blamer][Blamer:2]]
+(use-package! blamer
+  :commands (blamer-mode)
+  ;; :hook ((prog-mode . blamer-mode))
+  :custom
+  (blamer-idle-time 0.3)
+  (blamer-min-offset 60)
+  (blamer-prettify-time-p t)
+  (blamer-entire-formatter "    %s")
+  (blamer-author-formatter " %s ")
+  (blamer-datetime-formatter "[%s], ")
+  (blamer-commit-formatter "“%s”")
+  :custom-face
+  (blamer-face ((t :foreground "#7a88cf"
+                   :background nil
+                   :height 125
+                   :italic t))))
+;; Blamer:2 ends here
