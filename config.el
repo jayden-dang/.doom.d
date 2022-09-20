@@ -350,3 +350,37 @@
             '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
             '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
 ;; Which key:2 ends here
+
+;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:2]]
+(use-package! svg-tag-mode
+  :commands svg-tag-mode
+  :config
+  (setq svg-tag-tags
+        '(("^\\*.* .* \\(:[A-Za-z0-9]+\\)" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0))))
+          ("\\(:[A-Za-z0-9]+:\\)$" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :end -1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0)))))))
+;; SVG tag and =svg-lib=:2 ends here
+
+;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:3]]
+(after! svg-lib
+  ;; Set `svg-lib' cache directory
+  (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
+;; SVG tag and =svg-lib=:3 ends here

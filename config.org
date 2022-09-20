@@ -928,3 +928,44 @@ Make =which-key= popup faster.
             '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
             '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
 #+end_src
+
+*** SVG tag and =svg-lib= :svg:
+
+#+begin_src emacs-lisp :tangle "packages.el"
+(package! svg-tag-mode :pin "efd22edf650fb25e665269ba9fed7ccad0771a2f")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! svg-tag-mode
+  :commands svg-tag-mode
+  :config
+  (setq svg-tag-tags
+        '(("^\\*.* .* \\(:[A-Za-z0-9]+\\)" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0))))
+          ("\\(:[A-Za-z0-9]+:\\)$" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :end -1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0)))))))
+#+end_src
+
+#+begin_src emacs-lisp
+(after! svg-lib
+  ;; Set `svg-lib' cache directory
+  (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
+#+end_src
+

@@ -12,3 +12,7 @@
 ;; [[file:config.org::*Modus themes][Modus themes:1]]
 (package! modus-themes)
 ;; Modus themes:1 ends here
+
+;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:1]]
+(package! svg-tag-mode :pin "efd22edf650fb25e665269ba9fed7ccad0771a2f")
+;; SVG tag and =svg-lib=:1 ends here
