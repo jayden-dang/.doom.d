@@ -39,6 +39,18 @@
 (package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
 ;; Aggressive indent:1 ends here
 
+;; [[file:config.org::*Info colors][Info colors:1]]
+(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
+;; Info colors:1 ends here
+
+;; [[file:config.org::*The Silver Searcher][The Silver Searcher:1]]
+(package! ag :pin "ed7e32064f92f1315cecbfc43f120bbc7508672c")
+;; The Silver Searcher:1 ends here
+
+;; [[file:config.org::*Page break lines][Page break lines:1]]
+(package! page-break-lines :pin "79eca86e0634ac68af862e15c8a236c37f446dcd")
+;; Page break lines:1 ends here
+
 ;; [[file:config.org::*Grammarly][Grammarly:1]]
 (package! grammarly
   :recipe (:host github
@@ -82,18 +94,6 @@
            :repo "tecosaur/lexic")
   :pin "f9b3de4d9c2dd1ce5022383e1a504b87bf7d1b09")
 ;; Offline dictionaries:1 ends here
-
-;; [[file:config.org::*Info colors][Info colors:1]]
-(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
-;; Info colors:1 ends here
-
-;; [[file:config.org::*The Silver Searcher][The Silver Searcher:1]]
-(package! ag :pin "ed7e32064f92f1315cecbfc43f120bbc7508672c")
-;; The Silver Searcher:1 ends here
-
-;; [[file:config.org::*Page break lines][Page break lines:1]]
-(package! page-break-lines :pin "79eca86e0634ac68af862e15c8a236c37f446dcd")
-;; Page break lines:1 ends here
 
 ;; [[file:config.org::*Erefactor][Erefactor:1]]
 (package! erefactor
@@ -224,13 +224,6 @@
 (package! pkgbuild-mode :pin "9525be8ecbd3a0d0bc7cc27e6d0f403e111aa067")
 ;; PKGBUILD:1 ends here
 
-;; [[file:config.org::*LaTeX][LaTeX:1]]
-(package! aas
-  :recipe (:host github
-           :repo "ymarco/auto-activating-snippets")
-  :pin "566944e3b336c29d3ac11cd739a954c9d112f3fb")
-;; LaTeX:1 ends here
-
 ;; [[file:config.org::*Flycheck + Projectile][Flycheck + Projectile:1]]
 (package! flycheck-projectile
   :recipe (:host github
@@ -251,60 +244,12 @@
   :pin "b4ce25699e3ebff054f523375d1cf5a17bd0dbaf")
 ;; Mermaid:1 ends here
 
-;; [[file:config.org::*Org additional packages][Org additional packages:1]]
-(unpin! org-roam) ;; To avoid problems with org-roam-ui
-(package! websocket :pin "82b370602fa0158670b1c6c769f223159affce9b")
-(package! org-roam-ui :pin "16a8da9e5107833032893bc4c0680b368ac423ac")
-(package! org-wild-notifier :pin "9392b06d20b2f88e45a41bea17bb2f10f24fd19c")
-(package! org-fragtog :pin "c675563af3f9ab5558cfd5ea460e2a07477b0cfd")
-(package! org-appear :pin "60ba267c5da336e75e603f8c7ab3f44e6f4e4dac")
-(package! org-super-agenda :pin "f4f528985397c833c870967884b013cf91a1da4a")
-(package! doct :pin "506c22f365b75f5423810c4933856802554df464")
-
-(package! citar-org-roam
+;; [[file:config.org::*Mermaid][Mermaid:3]]
+(package! aas
   :recipe (:host github
-           :repo "emacs-citar/citar-org-roam")
-  :pin "29688b89ac3bf78405fa0dce7e17965aa8fe0dff")
-
-(package! org-menu
-  :recipe (:host github
-           :repo "sheijk/org-menu")
-  :pin "9cd10161c2b50dfef581f3d0441683eeeae6be59")
-
-(package! caldav
-  :recipe (:host github
-           :repo "dengste/org-caldav")
-  :pin "8569941a0a5a9393ba51afc8923fd7b77b73fa7a")
-
-(package! org-ol-tree
-  :recipe (:host github
-           :repo "Townk/org-ol-tree")
-  :pin "207c748aa5fea8626be619e8c55bdb1c16118c25")
-
-(package! org-modern
-  :recipe (:host github
-           :repo "minad/org-modern")
-  :pin "828cf100c62fc9dfb50152c192ac3a968c1b54bc")
-
-(package! org-bib
-  :recipe (:host github
-           :repo "rougier/org-bib-mode")
-  :pin "fed9910186e5e579c2391fb356f55ae24093b55a")
-
-(package! academic-phrases
-  :recipe (:host github
-           :repo "nashamri/academic-phrases")
-  :pin "25d9cf67feac6359cb213f061735e2679c84187f")
-
-(package! phscroll
-  :recipe (:host github
-           :repo "misohena/phscroll")
-  :pin "65e00c89f078997e1a5665d069ad8b1e3b851d49")
-;; Org additional packages:1 ends here
-
-;; [[file:config.org::*Fragtog][Fragtog:1]]
-(package! org-fragtog)
-;; Fragtog:1 ends here
+           :repo "ymarco/auto-activating-snippets")
+  :pin "566944e3b336c29d3ac11cd739a954c9d112f3fb")
+;; Mermaid:3 ends here
 
 ;; [[file:config.org::*Enabled some packages][Enabled some packages:1]]
 (package! editorconfig)
