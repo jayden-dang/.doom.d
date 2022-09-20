@@ -617,3 +617,39 @@
 
 (setq projectile-ignored-project-function #'+projectile-ignored-project-function)
 ;; Projectile:1 ends here
+
+;; [[file:config.org::*Tramp][Tramp:1]]
+(after! tramp
+  (setenv "SHELL" "/bin/bash")
+  (setq tramp-shell-prompt-pattern "\\(?:^\\|\\)[^]#$%>\n]*#?[]#$%>] *\\(\\[[0-9;]*[a-zA-Z] *\\)*")) ;; default + 
+;; Tramp:1 ends here
+
+;; [[file:config.org::*Eros-eval][Eros-eval:1]]
+(setq eros-eval-result-prefix "⟹ ")
+;; Eros-eval:1 ends here
+
+;; [[file:config.org::*=dir-locals.el=][=dir-locals.el=:1]]
+(defun +dir-locals-reload-for-current-buffer ()
+  "reload dir locals for the current buffer"
+  (interactive)
+  (let ((enable-local-variables :all))
+    (hack-dir-local-variables-non-file-buffer)))
+
+(defun +dir-locals-reload-for-all-buffers-in-this-directory ()
+  "For every buffer with the same `default-directory` as the
+current buffer's, reload dir-locals."
+  (interactive)
+  (let ((dir default-directory))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (equal default-directory dir)
+          (+dir-locals-reload-for-current-buffer))))))
+
+(defun +dir-locals-enable-autoreload ()
+  (when (and (buffer-file-name)
+             (equal dir-locals-file (file-name-nondirectory (buffer-file-name))))
+    (message "Dir-locals will be reloaded after saving.")
+    (add-hook 'after-save-hook '+dir-locals-reload-for-all-buffers-in-this-directory nil t)))
+
+(add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
+;; =dir-locals.el=:1 ends here
