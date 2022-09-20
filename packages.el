@@ -69,6 +69,32 @@
   :pin "314de13247710410f11d060a214ac4f400c02a71")
 ;; Grammalecte:1 ends here
 
+;; [[file:config.org::*Go Translate (Google, Bing and DeepL)][Go Translate (Google, Bing and DeepL):1]]
+(package! go-translate
+  :recipe (:host github
+           :repo "lorniu/go-translate")
+  :pin "8bbcbce42a7139f079df3e9b9bda0def2cbb690f")
+;; Go Translate (Google, Bing and DeepL):1 ends here
+
+;; [[file:config.org::*Offline dictionaries][Offline dictionaries:1]]
+(package! lexic
+  :recipe (:host github
+           :repo "tecosaur/lexic")
+  :pin "f9b3de4d9c2dd1ce5022383e1a504b87bf7d1b09")
+;; Offline dictionaries:1 ends here
+
+;; [[file:config.org::*Info colors][Info colors:1]]
+(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
+;; Info colors:1 ends here
+
+;; [[file:config.org::*The Silver Searcher][The Silver Searcher:1]]
+(package! ag :pin "ed7e32064f92f1315cecbfc43f120bbc7508672c")
+;; The Silver Searcher:1 ends here
+
+;; [[file:config.org::*Page break lines][Page break lines:1]]
+(package! page-break-lines :pin "79eca86e0634ac68af862e15c8a236c37f446dcd")
+;; Page break lines:1 ends here
+
 ;; [[file:config.org::*Erefactor][Erefactor:1]]
 (package! erefactor
   :recipe (:host github
@@ -118,3 +144,23 @@
 ;; [[file:config.org::*DAP][DAP:1]]
 (unpin! dap-mode)
 ;; DAP:1 ends here
+
+;; [[file:config.org::*Maxima][Maxima:1]]
+(package! maxima
+  :recipe (:host github
+           :repo "emacsmirror/maxima"
+           :files (:defaults
+                   "keywords"
+                   "company-maxima.el"
+                   "poly-maxima.el"))
+  :pin "1334f44725bd80a265de858d652f3fde4ae401fa")
+;; Maxima:1 ends here
+
+;; [[file:config.org::*IMaxima][IMaxima:1]]
+;; Use the `imaxima' package bundled with the official Maxima distribution.
+(package! imaxima
+  :recipe (:host nil ;; Unsupported host, we will specify the complete repo link
+           :repo "https://git.code.sf.net/p/maxima/code"
+           :files ("interfaces/emacs/imaxima/*"))
+  :pin "519ea34095e749634d3a188733a3ad284b593e12")
+;; IMaxima:1 ends here

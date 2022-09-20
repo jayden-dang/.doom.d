@@ -691,6 +691,262 @@
   (flycheck-grammalecte-setup))
 ;; Grammalecte:2 ends here
 
+;; [[file:config.org::*LTeX/LanguageTool][LTeX/LanguageTool:1]]
+(after! lsp-ltex
+  (setq lsp-ltex-language "auto"
+        lsp-ltex-mother-tongue +my/lang-mother-tongue
+        flycheck-checker-error-threshold 1000)
+
+  (advice-add
+   '+lsp-ltex-setup :after
+   (lambda ()
+     (setq-local lsp-idle-delay 5.0
+                 lsp-progress-function #'lsp-on-progress-legacy
+                 lsp-progress-spinner-type 'half-circle
+                 lsp-ui-sideline-show-code-actions nil
+                 lsp-ui-sideline-show-diagnostics nil
+                 lsp-ui-sideline-enable nil)))
+
+  ;; FIXME
+  (defun +lsp-ltex-check-document ()
+    (interactive)
+    (when-let ((file (buffer-file-name)))
+      (let* ((uri (lsp--path-to-uri file))
+             (beg (region-beginning))
+             (end (region-end))
+             (req (if (region-active-p)
+                      `(:uri ,uri
+                        :range ,(lsp--region-to-range beg end))
+                    `(:uri ,uri))))
+        (lsp-send-execute-command "_ltex.checkDocument" req)))))
+;; LTeX/LanguageTool:1 ends here
+
+;; [[file:config.org::*Go Translate (Google, Bing and DeepL)][Go Translate (Google, Bing and DeepL):2]]
+(use-package! go-translate
+  :commands (gts-do-translate
+             +gts-yank-translated-region
+             +gts-translate-with)
+  :init
+  ;; Your languages pairs
+  (setq gts-translate-list (list (list +my/lang-main +my/lang-secondary)
+                                 (list +my/lang-main +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-main)))
+
+  (map! :localleader
+        :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
+        :desc "Yank translated region" "R" #'+gts-yank-translated-region)
+
+  (map! :leader :prefix "l"
+        (:prefix ("G" . "go-translate")
+         :desc "Bing"                   "b" (lambda () (interactive) (+gts-translate-with 'bing))
+         :desc "DeepL"                  "d" (lambda () (interactive) (+gts-translate-with 'deepl))
+         :desc "Google"                 "g" (lambda () (interactive) (+gts-translate-with))
+         :desc "Yank translated region" "R" #'+gts-yank-translated-region
+         :desc "gts-do-translate"       "t" #'gts-do-translate))
+
+  :config
+  ;; Config the default translator, which will be used by the command `gts-do-translate'
+  (setq gts-default-translator
+        (gts-translator
+         ;; Used to pick source text, from, to. choose one.
+         :picker (gts-prompt-picker)
+         ;; One or more engines, provide a parser to give different output.
+         :engines (gts-google-engine :parser (gts-google-summary-parser))
+         ;; Render, only one, used to consumer the output result.
+         :render (gts-buffer-render)))
+
+  ;; Custom texter which remove newlines in the same paragraph
+  (defclass +gts-translate-paragraph (gts-texter) ())
+
+  (cl-defmethod gts-text ((_ +gts-translate-paragraph))
+    (when (use-region-p)
+      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
+        (with-temp-buffer
+          (insert text)
+          (goto-char (point-min))
+          (let ((case-fold-search nil))
+            (while (re-search-forward "\n[^\n]" nil t)
+              (replace-region-contents
+               (- (point) 2) (- (point) 1)
+               (lambda (&optional a b) " ")))
+            (buffer-string))))))
+
+  ;; Custom picker to use the paragraph texter
+  (defclass +gts-paragraph-picker (gts-picker)
+    ((texter :initarg :texter :initform (+gts-translate-paragraph))))
+
+  (cl-defmethod gts-pick ((o +gts-paragraph-picker))
+    (let ((text (gts-text (oref o texter))))
+      (when (or (null text) (zerop (length text)))
+        (user-error "Make sure there is any word at point, or selection exists"))
+      (let ((path (gts-path o text)))
+        (setq gts-picker-current-path path)
+        (cl-values text path))))
+
+  (defun +gts-yank-translated-region ()
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines (gts-google-engine)
+      :render (gts-kill-ring-render))))
+
+  (defun +gts-translate-with (&optional engine)
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines
+      (cond ((eq engine 'deepl)
+             (gts-deepl-engine
+              :auth-key ;; Get API key from ~/.authinfo.gpg (machine api-free.deepl.com)
+              (funcall
+               (plist-get (car (auth-source-search :host "api-free.deepl.com" :max 1))
+                          :secret))
+              :pro nil))
+            ((eq engine 'bing) (gts-bing-engine))
+            (t (gts-google-engine)))
+      :render (gts-buffer-render)))))
+;; Go Translate (Google, Bing and DeepL):2 ends here
+
+;; [[file:config.org::*Offline dictionaries][Offline dictionaries:2]]
+(use-package! lexic
+  :commands (lexic-search lexic-list-dictionary)
+  :config
+  (map! :map lexic-mode-map
+        :n "q" #'lexic-return-from-lexic
+        :nv "RET" #'lexic-search-word-at-point
+        :n "a" #'outline-show-all
+        :n "h" (cmd! (outline-hide-sublevels 3))
+        :n "o" #'lexic-toggle-entry
+        :n "n" #'lexic-next-entry
+        :n "N" (cmd! (lexic-next-entry t))
+        :n "p" #'lexic-previous-entry
+        :n "P" (cmd! (lexic-previous-entry t))
+        :n "E" (cmd! (lexic-return-from-lexic) ; expand
+                     (switch-to-buffer (lexic-get-buffer)))
+        :n "M" (cmd! (lexic-return-from-lexic) ; minimise
+                     (lexic-goto-lexic))
+        :n "C-p" #'lexic-search-history-backwards
+        :n "C-n" #'lexic-search-history-forwards
+        :n "/" (cmd! (call-interactively #'lexic-search))))
+;; Offline dictionaries:2 ends here
+
+;; [[file:config.org::*Workspaces][Workspaces:1]]
+(map! :leader
+      (:when (modulep! :ui workspaces)
+       :prefix ("TAB" . "workspace")
+       :desc "Display tab bar"           "TAB" #'+workspace/display
+       :desc "Switch workspace"          "."   #'+workspace/switch-to
+       :desc "Switch to last workspace"  "$"   #'+workspace/other ;; Modified
+       :desc "New workspace"             "n"   #'+workspace/new
+       :desc "New named workspace"       "N"   #'+workspace/new-named
+       :desc "Load workspace from file"  "l"   #'+workspace/load
+       :desc "Save workspace to file"    "s"   #'+workspace/save
+       :desc "Delete session"            "x"   #'+workspace/kill-session
+       :desc "Delete this workspace"     "d"   #'+workspace/delete
+       :desc "Rename workspace"          "r"   #'+workspace/rename
+       :desc "Restore last session"      "R"   #'+workspace/restore-last-session
+       :desc "Next workspace"            ">"   #'+workspace/switch-right ;; Modified
+       :desc "Previous workspace"        "<"   #'+workspace/switch-left ;; Modified
+       :desc "Switch to 1st workspace"   "1"   #'+workspace/switch-to-0
+       :desc "Switch to 2nd workspace"   "2"   #'+workspace/switch-to-1
+       :desc "Switch to 3rd workspace"   "3"   #'+workspace/switch-to-2
+       :desc "Switch to 4th workspace"   "4"   #'+workspace/switch-to-3
+       :desc "Switch to 5th workspace"   "5"   #'+workspace/switch-to-4
+       :desc "Switch to 6th workspace"   "6"   #'+workspace/switch-to-5
+       :desc "Switch to 7th workspace"   "7"   #'+workspace/switch-to-6
+       :desc "Switch to 8th workspace"   "8"   #'+workspace/switch-to-7
+       :desc "Switch to 9th workspace"   "9"   #'+workspace/switch-to-8
+       :desc "Switch to final workspace" "0"   #'+workspace/switch-to-final))
+;; Workspaces:1 ends here
+
+;; [[file:config.org::*Info colors][Info colors:2]]
+(use-package! info-colors
+  :commands (info-colors-fontify-node))
+
+(add-hook 'Info-selection-hook 'info-colors-fontify-node)
+;; Info colors:2 ends here
+
+;; [[file:config.org::*The Silver Searcher][The Silver Searcher:2]]
+(use-package! ag
+  :when AG-P
+  :commands (ag
+             ag-files
+             ag-regexp
+             ag-project
+             ag-project-files
+             ag-project-regexp))
+;; The Silver Searcher:2 ends here
+
+;; [[file:config.org::*Page break lines][Page break lines:2]]
+(use-package! page-break-lines
+  :diminish
+  :init (global-page-break-lines-mode))
+;; Page break lines:2 ends here
+
+;; [[file:config.org::*PDF tools][PDF tools:1]]
+(after! pdf-tools
+  ;; Auto install
+  (pdf-tools-install-noverify)
+
+  (setq-default pdf-view-image-relief 2
+                pdf-view-display-size 'fit-page)
+
+  (add-hook! 'pdf-view-mode-hook
+    (when (memq doom-theme '(modus-vivendi doom-one doom-dark+ doom-vibrant))
+      ;; TODO: find a more generic way to detect if we are in a dark theme
+      (pdf-view-midnight-minor-mode 1)))
+
+  ;; Color the background, so we can see the PDF page borders
+  ;; https://protesilaos.com/emacs/modus-themes#h:ff69dfe1-29c0-447a-915c-b5ff7c5509cd
+  (defun +pdf-tools-backdrop ()
+    (face-remap-add-relative
+     'default
+     `(:background ,(if (memq doom-theme '(modus-vivendi modus-operandi))
+                        (modus-themes-color 'bg-alt)
+                      (doom-color 'bg-alt)))))
+
+  (add-hook 'pdf-tools-enabled-hook #'+pdf-tools-backdrop))
+
+(after! pdf-links
+  ;; Tweak for Modus and `pdf-links'
+  (when (memq doom-theme '(modus-vivendi modus-operandi))
+    ;; https://protesilaos.com/emacs/modus-themes#h:2659d13e-b1a5-416c-9a89-7c3ce3a76574
+    (let ((spec (apply #'append
+                       (mapcar
+                        (lambda (name)
+                          (list name
+                                (face-attribute 'pdf-links-read-link
+                                                name nil 'default)))
+                        '(:family :width :weight :slant)))))
+      (setq pdf-links-read-link-convert-commands
+            `("-density"    "96"
+              "-family"     ,(plist-get spec :family)
+              "-stretch"    ,(let* ((width (plist-get spec :width))
+                                    (name (symbol-name width)))
+                               (replace-regexp-in-string "-" ""
+                                                         (capitalize name)))
+              "-weight"     ,(pcase (plist-get spec :weight)
+                               ('ultra-light "Thin")
+                               ('extra-light "ExtraLight")
+                               ('light       "Light")
+                               ('semi-bold   "SemiBold")
+                               ('bold        "Bold")
+                               ('extra-bold  "ExtraBold")
+                               ('ultra-bold  "Black")
+                               (_weight      "Normal"))
+              "-style"      ,(pcase (plist-get spec :slant)
+                               ('italic  "Italic")
+                               ('oblique "Oblique")
+                               (_slant   "Normal"))
+              "-pointsize"  "%P"
+              "-undercolor" "%f"
+              "-fill"       "%b"
+              "-draw"       "text %X,%Y '%c'")))))
+;; PDF tools:1 ends here
+
 ;; [[file:config.org::*Which key][Which key:1]]
 (setq which-key-idle-delay 0.5 ;; Default is 1.0
       which-key-idle-secondary-delay 0.05) ;; Default is nil
@@ -1099,3 +1355,30 @@ current buffer's, reload dir-locals."
        :prefix ("d" . "debugger")
        :desc "Clear last DAP session" "c" #'+debugger/clear-last-session))
 ;; Doom store:1 ends here
+
+;; [[file:config.org::*Maxima][Maxima:2]]
+(use-package! maxima
+  :when MAXIMA-P
+  :commands (maxima-mode maxima-inferior-mode maxima)
+  :init
+  (require 'straight) ;; to use `straight-build-dir' and `straight-base-dir'
+  (setq maxima-font-lock-keywords-directory ;; a workaround to undo the straight workaround!
+        (expand-file-name (format "straight/%s/maxima/keywords" straight-build-dir) straight-base-dir))
+
+  ;; The `maxima-hook-function' setup `company-maxima'.
+  (add-hook 'maxima-mode-hook #'maxima-hook-function)
+  (add-hook 'maxima-inferior-mode-hook #'maxima-hook-function)
+  (add-to-list 'auto-mode-alist '("\\.ma[cx]\\'" . maxima-mode)))
+;; Maxima:2 ends here
+
+;; [[file:config.org::*IMaxima][IMaxima:2]]
+(use-package! imaxima
+  :when MAXIMA-P
+  :commands (imaxima imath-mode)
+  :init
+  (setq imaxima-use-maxima-mode-flag nil ;; otherwise, it don't render equations with LaTeX.
+        imaxima-scale-factor 2.0)
+
+  ;; Hook the `maxima-inferior-mode' to get Company completion.
+  (add-hook 'imaxima-startup-hook #'maxima-inferior-mode))
+;; IMaxima:2 ends here

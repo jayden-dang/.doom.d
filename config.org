@@ -62,10 +62,20 @@ I'm moving the big reusable configuration parts to =.doom.d/modules/private=
 export ZSH="$HOME/.oh-my-zsh"
 
 # Themes
-ZSH_THEME="pygmalion"
+TYPEWRITTEN_RELATIVE_PATH="adaptive"
+TYPEWRITTEN_CURSOR="underscore"
+
+ZSH_THEME="typewritten/typewritten"
+
+# Uncomment the following line to automatically update without prompting.
+DISABLE_UPDATE_PROMPT="true"
+
+# Uncomment the following line to change how often to auto-update (in days).
+export UPDATE_ZSH_DAYS=3
+
 
 # Some Plug-in
-plugins=(git colored-man-pages colorize pip python brew macos zsh-autosuggestions zsh-syntax-highlighting)
+plugins=(rust repo ripgrep fzf fd repo git colored-man-pages colorize pip python brew macos zsh-autosuggestions zsh-syntax-highlighting)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -80,6 +90,8 @@ source ~/env.sh
 
 # Rust Enviroment
 source "$HOME/.cargo/env"
+export RUST_SRC_PATH=$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src/
+export PATH=$PATH:$HOME/.cargo/bin
 
 # NVM
 export NVM_DIR="$HOME/.nvm"
@@ -1385,6 +1397,316 @@ Use either [[https://github.com/emacs-grammarly/eglot-grammarly][eglot-grammarly
   (flycheck-grammalecte-setup))
 #+end_src
 
+*** LTeX/LanguageTool :lsp:languagetool:
+- Ltex-ls Nó có thể kiểm tra ngữ pháp và chính tả của một số ngôn ngữ, và chuyển
+  đổi thành bibTex, ConText,Latex, Markdown, Org, ...
+#+begin_src emacs-lisp
+(after! lsp-ltex
+  (setq lsp-ltex-language "auto"
+        lsp-ltex-mother-tongue +my/lang-mother-tongue
+        flycheck-checker-error-threshold 1000)
+
+  (advice-add
+   '+lsp-ltex-setup :after
+   (lambda ()
+     (setq-local lsp-idle-delay 5.0
+                 lsp-progress-function #'lsp-on-progress-legacy
+                 lsp-progress-spinner-type 'half-circle
+                 lsp-ui-sideline-show-code-actions nil
+                 lsp-ui-sideline-show-diagnostics nil
+                 lsp-ui-sideline-enable nil)))
+
+  ;; FIXME
+  (defun +lsp-ltex-check-document ()
+    (interactive)
+    (when-let ((file (buffer-file-name)))
+      (let* ((uri (lsp--path-to-uri file))
+             (beg (region-beginning))
+             (end (region-end))
+             (req (if (region-active-p)
+                      `(:uri ,uri
+                        :range ,(lsp--region-to-range beg end))
+                    `(:uri ,uri))))
+        (lsp-send-execute-command "_ltex.checkDocument" req)))))
+#+end_src
+
+*** Go Translate (Google, Bing and DeepL)
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! go-translate
+  :recipe (:host github
+           :repo "lorniu/go-translate")
+  :pin "8bbcbce42a7139f079df3e9b9bda0def2cbb690f")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! go-translate
+  :commands (gts-do-translate
+             +gts-yank-translated-region
+             +gts-translate-with)
+  :init
+  ;; Your languages pairs
+  (setq gts-translate-list (list (list +my/lang-main +my/lang-secondary)
+                                 (list +my/lang-main +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-main)))
+
+  (map! :localleader
+        :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
+        :desc "Yank translated region" "R" #'+gts-yank-translated-region)
+
+  (map! :leader :prefix "l"
+        (:prefix ("G" . "go-translate")
+         :desc "Bing"                   "b" (lambda () (interactive) (+gts-translate-with 'bing))
+         :desc "DeepL"                  "d" (lambda () (interactive) (+gts-translate-with 'deepl))
+         :desc "Google"                 "g" (lambda () (interactive) (+gts-translate-with))
+         :desc "Yank translated region" "R" #'+gts-yank-translated-region
+         :desc "gts-do-translate"       "t" #'gts-do-translate))
+
+  :config
+  ;; Config the default translator, which will be used by the command `gts-do-translate'
+  (setq gts-default-translator
+        (gts-translator
+         ;; Used to pick source text, from, to. choose one.
+         :picker (gts-prompt-picker)
+         ;; One or more engines, provide a parser to give different output.
+         :engines (gts-google-engine :parser (gts-google-summary-parser))
+         ;; Render, only one, used to consumer the output result.
+         :render (gts-buffer-render)))
+
+  ;; Custom texter which remove newlines in the same paragraph
+  (defclass +gts-translate-paragraph (gts-texter) ())
+
+  (cl-defmethod gts-text ((_ +gts-translate-paragraph))
+    (when (use-region-p)
+      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
+        (with-temp-buffer
+          (insert text)
+          (goto-char (point-min))
+          (let ((case-fold-search nil))
+            (while (re-search-forward "\n[^\n]" nil t)
+              (replace-region-contents
+               (- (point) 2) (- (point) 1)
+               (lambda (&optional a b) " ")))
+            (buffer-string))))))
+
+  ;; Custom picker to use the paragraph texter
+  (defclass +gts-paragraph-picker (gts-picker)
+    ((texter :initarg :texter :initform (+gts-translate-paragraph))))
+
+  (cl-defmethod gts-pick ((o +gts-paragraph-picker))
+    (let ((text (gts-text (oref o texter))))
+      (when (or (null text) (zerop (length text)))
+        (user-error "Make sure there is any word at point, or selection exists"))
+      (let ((path (gts-path o text)))
+        (setq gts-picker-current-path path)
+        (cl-values text path))))
+
+  (defun +gts-yank-translated-region ()
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines (gts-google-engine)
+      :render (gts-kill-ring-render))))
+
+  (defun +gts-translate-with (&optional engine)
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines
+      (cond ((eq engine 'deepl)
+             (gts-deepl-engine
+              :auth-key ;; Get API key from ~/.authinfo.gpg (machine api-free.deepl.com)
+              (funcall
+               (plist-get (car (auth-source-search :host "api-free.deepl.com" :max 1))
+                          :secret))
+              :pro nil))
+            ((eq engine 'bing) (gts-bing-engine))
+            (t (gts-google-engine)))
+      :render (gts-buffer-render)))))
+#+end_src
+
+*** Offline dictionaries
+Needs ~sdcv~ to be installed, needs also /StarDict/ dictionaries, you can download
+some from [[https://sites.google.com/site/gtonguedict/home/stardict-dictionaries][here]] and [[https://polyglotte.tuxfamily.org/doku.php?id=donnees:dicos_bilingues][here]] for french.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! lexic
+  :recipe (:host github
+           :repo "tecosaur/lexic")
+  :pin "f9b3de4d9c2dd1ce5022383e1a504b87bf7d1b09")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! lexic
+  :commands (lexic-search lexic-list-dictionary)
+  :config
+  (map! :map lexic-mode-map
+        :n "q" #'lexic-return-from-lexic
+        :nv "RET" #'lexic-search-word-at-point
+        :n "a" #'outline-show-all
+        :n "h" (cmd! (outline-hide-sublevels 3))
+        :n "o" #'lexic-toggle-entry
+        :n "n" #'lexic-next-entry
+        :n "N" (cmd! (lexic-next-entry t))
+        :n "p" #'lexic-previous-entry
+        :n "P" (cmd! (lexic-previous-entry t))
+        :n "E" (cmd! (lexic-return-from-lexic) ; expand
+                     (switch-to-buffer (lexic-get-buffer)))
+        :n "M" (cmd! (lexic-return-from-lexic) ; minimise
+                     (lexic-goto-lexic))
+        :n "C-p" #'lexic-search-history-backwards
+        :n "C-n" #'lexic-search-history-forwards
+        :n "/" (cmd! (call-interactively #'lexic-search))))
+#+end_src
+
+** Features
+*** Workspaces
+
+#+begin_src emacs-lisp
+(map! :leader
+      (:when (modulep! :ui workspaces)
+       :prefix ("TAB" . "workspace")
+       :desc "Display tab bar"           "TAB" #'+workspace/display
+       :desc "Switch workspace"          "."   #'+workspace/switch-to
+       :desc "Switch to last workspace"  "$"   #'+workspace/other ;; Modified
+       :desc "New workspace"             "n"   #'+workspace/new
+       :desc "New named workspace"       "N"   #'+workspace/new-named
+       :desc "Load workspace from file"  "l"   #'+workspace/load
+       :desc "Save workspace to file"    "s"   #'+workspace/save
+       :desc "Delete session"            "x"   #'+workspace/kill-session
+       :desc "Delete this workspace"     "d"   #'+workspace/delete
+       :desc "Rename workspace"          "r"   #'+workspace/rename
+       :desc "Restore last session"      "R"   #'+workspace/restore-last-session
+       :desc "Next workspace"            ">"   #'+workspace/switch-right ;; Modified
+       :desc "Previous workspace"        "<"   #'+workspace/switch-left ;; Modified
+       :desc "Switch to 1st workspace"   "1"   #'+workspace/switch-to-0
+       :desc "Switch to 2nd workspace"   "2"   #'+workspace/switch-to-1
+       :desc "Switch to 3rd workspace"   "3"   #'+workspace/switch-to-2
+       :desc "Switch to 4th workspace"   "4"   #'+workspace/switch-to-3
+       :desc "Switch to 5th workspace"   "5"   #'+workspace/switch-to-4
+       :desc "Switch to 6th workspace"   "6"   #'+workspace/switch-to-5
+       :desc "Switch to 7th workspace"   "7"   #'+workspace/switch-to-6
+       :desc "Switch to 8th workspace"   "8"   #'+workspace/switch-to-7
+       :desc "Switch to 9th workspace"   "9"   #'+workspace/switch-to-8
+       :desc "Switch to final workspace" "0"   #'+workspace/switch-to-final))
+#+end_src
+
+*** Info colors
+Better colors for manual pages.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! info-colors
+  :commands (info-colors-fontify-node))
+
+(add-hook 'Info-selection-hook 'info-colors-fontify-node)
+#+end_src
+
+*** The Silver Searcher :search:
+An Emacs front-end to /The Silver Searcher/, first we need to install =ag= using
+=brew install the_silver_searcher=.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ag :pin "ed7e32064f92f1315cecbfc43f120bbc7508672c")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! ag
+  :when AG-P
+  :commands (ag
+             ag-files
+             ag-regexp
+             ag-project
+             ag-project-files
+             ag-project-regexp))
+#+end_src
+
+*** Page break lines :editor:
+A feature that displays ugly form feed characters as tidy horizontal rules.
+Inspired by [[https://github.com/MatthewZMD/.emacs.d#page-break-lines][M-EMACS]].
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! page-break-lines :pin "79eca86e0634ac68af862e15c8a236c37f446dcd")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! page-break-lines
+  :diminish
+  :init (global-page-break-lines-mode))
+#+end_src
+
+*** PDF tools
+The =pdf-tools= package supports dark mode (midnight), I use Emacs often to write
+and read PDF documents, so let's make it dark by default, this can be toggled
+using the =m z=.
+
+#+begin_src emacs-lisp
+(after! pdf-tools
+  ;; Auto install
+  (pdf-tools-install-noverify)
+
+  (setq-default pdf-view-image-relief 2
+                pdf-view-display-size 'fit-page)
+
+  (add-hook! 'pdf-view-mode-hook
+    (when (memq doom-theme '(modus-vivendi doom-one doom-dark+ doom-vibrant))
+      ;; TODO: find a more generic way to detect if we are in a dark theme
+      (pdf-view-midnight-minor-mode 1)))
+
+  ;; Color the background, so we can see the PDF page borders
+  ;; https://protesilaos.com/emacs/modus-themes#h:ff69dfe1-29c0-447a-915c-b5ff7c5509cd
+  (defun +pdf-tools-backdrop ()
+    (face-remap-add-relative
+     'default
+     `(:background ,(if (memq doom-theme '(modus-vivendi modus-operandi))
+                        (modus-themes-color 'bg-alt)
+                      (doom-color 'bg-alt)))))
+
+  (add-hook 'pdf-tools-enabled-hook #'+pdf-tools-backdrop))
+
+(after! pdf-links
+  ;; Tweak for Modus and `pdf-links'
+  (when (memq doom-theme '(modus-vivendi modus-operandi))
+    ;; https://protesilaos.com/emacs/modus-themes#h:2659d13e-b1a5-416c-9a89-7c3ce3a76574
+    (let ((spec (apply #'append
+                       (mapcar
+                        (lambda (name)
+                          (list name
+                                (face-attribute 'pdf-links-read-link
+                                                name nil 'default)))
+                        '(:family :width :weight :slant)))))
+      (setq pdf-links-read-link-convert-commands
+            `("-density"    "96"
+              "-family"     ,(plist-get spec :family)
+              "-stretch"    ,(let* ((width (plist-get spec :width))
+                                    (name (symbol-name width)))
+                               (replace-regexp-in-string "-" ""
+                                                         (capitalize name)))
+              "-weight"     ,(pcase (plist-get spec :weight)
+                               ('ultra-light "Thin")
+                               ('extra-light "ExtraLight")
+                               ('light       "Light")
+                               ('semi-bold   "SemiBold")
+                               ('bold        "Bold")
+                               ('extra-bold  "ExtraBold")
+                               ('ultra-bold  "Black")
+                               (_weight      "Normal"))
+              "-style"      ,(pcase (plist-get spec :slant)
+                               ('italic  "Italic")
+                               ('oblique "Oblique")
+                               (_slant   "Normal"))
+              "-pointsize"  "%P"
+              "-undercolor" "%f"
+              "-fill"       "%b"
+              "-draw"       "text %X,%Y '%c'")))))
+#+end_src
+
 * Completion & IDE :ide:
 ** UI Package
 *** Which key :key:
@@ -1976,4 +2298,109 @@ session, to do so, I define a helper function to clear data stored in the
       (:when (modulep! :tools debugger +lsp)
        :prefix ("d" . "debugger")
        :desc "Clear last DAP session" "c" #'+debugger/clear-last-session))
+#+end_src
+
+* Application
+** Maxima :math:cas:algebra:
+The Maxima CAS cames bundled with three Emacs modes: =maxima=, =imaxima= and
+=emaxima=; installed by default in ~"/usr/share/emacs/site-lisp/maxima"~.
+
+*** Maxima :maxima:
+The [[https://github.com/emacsmirror/maxima][emacsmirror/maxima]] seems more up-to-date, and supports completion via
+Company, so let's install it from GitHub. Note that, normally, we don't need to
+specify a recipe; however, installing it directly seems to not install
+=company-maxima.el= and =poly-maxima.el=.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! maxima
+  :recipe (:host github
+           :repo "emacsmirror/maxima"
+           :files (:defaults
+                   "keywords"
+                   "company-maxima.el"
+                   "poly-maxima.el"))
+  :pin "1334f44725bd80a265de858d652f3fde4ae401fa")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! maxima
+  :when MAXIMA-P
+  :commands (maxima-mode maxima-inferior-mode maxima)
+  :init
+  (require 'straight) ;; to use `straight-build-dir' and `straight-base-dir'
+  (setq maxima-font-lock-keywords-directory ;; a workaround to undo the straight workaround!
+        (expand-file-name (format "straight/%s/maxima/keywords" straight-build-dir) straight-base-dir))
+
+  ;; The `maxima-hook-function' setup `company-maxima'.
+  (add-hook 'maxima-mode-hook #'maxima-hook-function)
+  (add-hook 'maxima-inferior-mode-hook #'maxima-hook-function)
+  (add-to-list 'auto-mode-alist '("\\.ma[cx]\\'" . maxima-mode)))
+#+end_src
+
+*** IMaxima :imaxima:imath:
+For the =imaxima= (Maxima with image support), the [[https://github.com/emacsattic/imaxima][emacsattic/imaxima]] seems
+outdated compared to the =imaxima= package of the official Maxima distribution, so
+let's install =imaxima= from the source code of Maxima, hosted on Sourceforge
+[[https://git.code.sf.net/p/maxima/code][git.code.sf.net/p/maxima/code]]. The package files are stored in the repository's
+subdirectory ~interfaces/emacs/imaxima~.
+
+#+begin_src emacs-lisp :tangle packages.el
+;; Use the `imaxima' package bundled with the official Maxima distribution.
+(package! imaxima
+  :recipe (:host nil ;; Unsupported host, we will specify the complete repo link
+           :repo "https://git.code.sf.net/p/maxima/code"
+           :files ("interfaces/emacs/imaxima/*"))
+  :pin "519ea34095e749634d3a188733a3ad284b593e12")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! imaxima
+  :when MAXIMA-P
+  :commands (imaxima imath-mode)
+  :init
+  (setq imaxima-use-maxima-mode-flag nil ;; otherwise, it don't render equations with LaTeX.
+        imaxima-scale-factor 2.0)
+
+  ;; Hook the `maxima-inferior-mode' to get Company completion.
+  (add-hook 'imaxima-startup-hook #'maxima-inferior-mode))
+#+end_src
+
+
+* Rust format :rust:format:
+For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format
+settings, I like to set it to:
+
+#+begin_src conf-toml :tangle ~/.rustfmt.toml
+# Rust edition 2021
+edition = "2021"
+
+# Use Unix style newlines, with 2 spaces tabulation.
+hard_tabs = false
+
+# Make one line functions in a single line
+fn_single_line = true
+
+# Format strings
+format_strings = true
+
+# Increase the max line width
+max_width = 120
+
+# Merge nested imports
+merge_imports = true
+
+# Enum and Struct alignement
+enum_discrim_align_threshold = 20
+struct_field_align_threshold = 20
+
+# Reorder impl items: type > const > macros > methods.
+reorder_impl_items = true
+
+# Comments and documentation formating
+wrap_comments = true
+normalize_comments = true
+normalize_doc_attributes = true
+format_code_in_doc_comments = true
+report_fixme = "Always"
+todo = "Always"
 #+end_src
