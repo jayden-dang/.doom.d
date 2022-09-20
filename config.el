@@ -384,3 +384,8 @@
   ;; Set `svg-lib' cache directory
   (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
 ;; SVG tag and =svg-lib=:3 ends here
+
+;; [[file:config.org::*Focus][Focus:2]]
+(use-package! focus
+  :commands focus-mode)
+;; Focus:2 ends here

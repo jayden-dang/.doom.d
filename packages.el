@@ -16,3 +16,7 @@
 ;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:1]]
 (package! svg-tag-mode :pin "efd22edf650fb25e665269ba9fed7ccad0771a2f")
 ;; SVG tag and =svg-lib=:1 ends here
+
+;; [[file:config.org::*Focus][Focus:1]]
+(package! focus :pin "9dd85fc474bbc1ebf22c287752c960394fcd465a")
+;; Focus:1 ends here

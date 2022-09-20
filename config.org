@@ -969,3 +969,14 @@ Make =which-key= popup faster.
   (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
 #+end_src
 
+*** Focus :focus:
+Dim the font color of text in surrounding paragraphs, focus only on the current line.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! focus :pin "9dd85fc474bbc1ebf22c287752c960394fcd465a")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! focus
+  :commands focus-mode)
+#+end_src
