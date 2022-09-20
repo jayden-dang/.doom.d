@@ -47,3 +47,22 @@
 (package! lsp-sonarlint
   :disable t :pin "3313f38ed7d23947992e19f1e464c6d544124144")
 ;; SonarLint:1 ends here
+
+;; [[file:config.org::*Project CMake][Project CMake:1]]
+(package! project-cmake
+  :disable t ; (not (modulep! :tools lsp +eglot)) ; Enable only if (lsp +eglot) is used
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144"
+  :recipe (:host github
+           :repo "juanjosegarciaripoll/project-cmake"))
+;; Project CMake:1 ends here
+
+;; [[file:config.org::*Clang-format][Clang-format:1]]
+(package! clang-format :pin "e48ff8ae18dc7ab6118c1f6752deb48cb1fc83ac")
+;; Clang-format:1 ends here
+
+;; [[file:config.org::*Auto-include C++ headers][Auto-include C++ headers:1]]
+(package! cpp-auto-include
+  :recipe (:host github
+           :repo "emacsorphanage/cpp-auto-include")
+  :pin "0ce829f27d466c083e78b9fe210dcfa61fb417f4")
+;; Auto-include C++ headers:1 ends here

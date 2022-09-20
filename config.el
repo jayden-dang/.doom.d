@@ -864,3 +864,43 @@ current buffer's, reload dir-locals."
 ;; [[file:config.org::*SonarLint][SonarLint:2]]
 (use-package! lsp-sonarlint)
 ;; SonarLint:2 ends here
+
+;; [[file:config.org::*Cppcheck][Cppcheck:1]]
+(after! flycheck
+  (setq flycheck-cppcheck-checks '("information"
+                                   "missingInclude"
+                                   "performance"
+                                   "portability"
+                                   "style"
+                                   "unusedFunction"
+                                   "warning"))) ;; Actually, we can use "all"
+;; Cppcheck:1 ends here
+
+;; [[file:config.org::*Project CMake][Project CMake:2]]
+(use-package! project-cmake
+    :config
+    (require 'eglot)
+    (project-cmake-scan-kits)
+    (project-cmake-eglot-integration))
+;; Project CMake:2 ends here
+
+;; [[file:config.org::*Clang-format][Clang-format:2]]
+(use-package! clang-format
+  :when CLANG-FORMAT-P
+  :commands (clang-format-region))
+;; Clang-format:2 ends here
+
+;; [[file:config.org::*Auto-include C++ headers][Auto-include C++ headers:2]]
+(use-package! cpp-auto-include
+  :commands cpp-auto-include)
+;; Auto-include C++ headers:2 ends here
+
+;; [[file:config.org::*C/C++ preprocessor conditions][C/C++ preprocessor conditions:1]]
+(unless (modulep! :lang cc +lsp) ;; Disable if LSP for C/C++ is enabled
+  (use-package! hideif
+    :hook (c-mode . hide-ifdef-mode)
+    :hook (c++-mode . hide-ifdef-mode)
+    :init
+    (setq hide-ifdef-shadow t
+          hide-ifdef-initially t)))
+;; C/C++ preprocessor conditions:1 ends here

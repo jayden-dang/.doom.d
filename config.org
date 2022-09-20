@@ -1201,6 +1201,7 @@ Nested snippets are good, enable that.
 #+end_src
 
 * Completion & IDE :ide:
+** UI Package
 *** Which key :key:
 Make =which-key= popup faster.
 
@@ -1431,6 +1432,7 @@ current buffer's, reload dir-locals."
 (add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
 #+end_src
 
+** Languages
 *** Language Server Protocol :lsp:
 **** Eglot :eglot:
 Eglot uses =project.el= to detect the project root. This is [[https://github.com/joaotavora/eglot/issues/129#issuecomment-444130367][a workaround]] to make
@@ -1620,4 +1622,78 @@ use =rust_hdl= instead.
 
 #+begin_src emacs-lisp
 (use-package! lsp-sonarlint)
+#+end_src
+
+*** C++ :cpp:
+**** Cppcheck :flycheck:cppcheck:
+Check for everything!
+
+#+begin_src emacs-lisp
+(after! flycheck
+  (setq flycheck-cppcheck-checks '("information"
+                                   "missingInclude"
+                                   "performance"
+                                   "portability"
+                                   "style"
+                                   "unusedFunction"
+                                   "warning"))) ;; Actually, we can use "all"
+#+end_src
+
+**** Project CMake :cmake:
+- Một package mới tương tác rất tối với cmake project, nó là sự kết hợp của
+  project, eglot, cmake và clangd.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! project-cmake
+  :disable t ; (not (modulep! :tools lsp +eglot)) ; Enable only if (lsp +eglot) is used
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144"
+  :recipe (:host github
+           :repo "juanjosegarciaripoll/project-cmake"))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! project-cmake
+    :config
+    (require 'eglot)
+    (project-cmake-scan-kits)
+    (project-cmake-eglot-integration))
+#+end_src
+
+**** Clang-format :cpp:format:
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! clang-format :pin "e48ff8ae18dc7ab6118c1f6752deb48cb1fc83ac")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! clang-format
+  :when CLANG-FORMAT-P
+  :commands (clang-format-region))
+#+end_src
+
+**** Auto-include C++ headers :cpp:header:
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! cpp-auto-include
+  :recipe (:host github
+           :repo "emacsorphanage/cpp-auto-include")
+  :pin "0ce829f27d466c083e78b9fe210dcfa61fb417f4")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! cpp-auto-include
+  :commands cpp-auto-include)
+#+end_src
+
+**** C/C++ preprocessor conditions
+- Trong trường hợp LSP không khả dụng, chúng ta sử dụng ifdef.
+
+#+begin_src emacs-lisp
+(unless (modulep! :lang cc +lsp) ;; Disable if LSP for C/C++ is enabled
+  (use-package! hideif
+    :hook (c-mode . hide-ifdef-mode)
+    :hook (c++-mode . hide-ifdef-mode)
+    :init
+    (setq hide-ifdef-shadow t
+          hide-ifdef-initially t)))
 #+end_src
