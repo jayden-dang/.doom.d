@@ -4,12 +4,13 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(flycheck-grammarly flymake-grammarly lsp-grammarly grammarly ascii-table unicode-fonts emojify unidecode modus-themes lsp-ltex)))
+   '(latex-extra cdlatex org-link-beautify unidecode unicode-fonts modus-themes lsp-ltex lsp-grammarly flymake-grammarly flycheck-grammarly emojify ascii-table)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(blamer-face ((t :foreground "#7a88cf" :background nil :height 125 :italic t)))
  '(diff-hl-change ((((class color) (min-colors 89)) :foreground "#dbba3f")))
  '(diff-hl-delete ((((class color) (min-colors 89)) :foreground "#f08290")))
  '(diff-hl-insert ((((class color) (min-colors 89)) :foreground "#62c86a")))
@@ -32,6 +33,17 @@
  '(mmm-init-submode-face ((((class color) (min-colors 89)) :background "#ffccff")))
  '(mmm-output-submode-face ((((class color) (min-colors 89)) :background "#ffcccc")))
  '(mmm-special-submode-face ((((class color) (min-colors 89)) :background "#aceaac")))
+ '(org-document-title ((t (:height 1.2))))
+ '(org-modern-statistics ((t (:inherit org-checkbox-statistics-todo))))
+ '(org-modern-tag ((t (:inherit (region org-modern-label)))))
+ '(outline-1 ((t (:weight extra-bold :height 1.25))))
+ '(outline-2 ((t (:weight bold :height 1.15))))
+ '(outline-3 ((t (:weight bold :height 1.12))))
+ '(outline-4 ((t (:weight semi-bold :height 1.09))))
+ '(outline-5 ((t (:weight semi-bold :height 1.06))))
+ '(outline-6 ((t (:weight semi-bold :height 1.03))))
+ '(outline-8 ((t (:weight semi-bold))))
+ '(outline-9 ((t (:weight semi-bold))))
  '(solaire-default-face ((((class color) (min-colors 89)) :inherit default :background "#f0f0f0" :foreground "#282828")))
  '(solaire-hl-line-face ((((class color) (min-colors 89)) :background "#d7d7d7")))
  '(solaire-line-number-face ((((class color) (min-colors 89)) :inherit solaire-default-face :foreground "#56576d")))

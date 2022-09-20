@@ -2163,29 +2163,469 @@ Return nil otherwise."
     (eval `(+lsp-org-babel-enable ,lang))))
 ;; LSP in =src= blocks:1 ends here
 
-;; [[file:config.org::*Sub-figures][Sub-figures:1]]
-(org-link-set-parameters
- "subfig"
- :follow (lambda (file) (find-file file))
- :face '(:foreground "chocolate" :weight bold :underline t)
- :display 'full
- :export
- (lambda (file desc backend)
-   (when (eq backend 'latex)
-     (if (string-match ">(\\(.+\\))" desc)
-         (concat "\\begin{subfigure}[b]"
-                 "\\caption{" (replace-regexp-in-string "\s+>(.+)" "" desc) "}"
-                 "\\includegraphics" "[" (match-string 1 desc) "]" "{" file "}" "\\end{subfigure}")
-       (format "\\begin{subfigure}\\includegraphics{%s}\\end{subfigure}" desc file)))))
-;; Sub-figures:1 ends here
+;; [[file:config.org::*Headings][Headings:1]]
+(custom-set-faces!
+  '(org-document-title :height 1.2))
 
-;; [[file:config.org::*LaTeX inline markup][LaTeX inline markup:1]]
-(org-add-link-type
- "latex" nil
- (lambda (path desc format)
-   (cond
-    ((eq format 'html)
-     (format "<span class=\"%s\">%s</span>" path desc))
-    ((eq format 'latex)
-     (format "\\%s{%s}" path desc)))))
-;; LaTeX inline markup:1 ends here
+(custom-set-faces!
+  '(outline-1 :weight extra-bold :height 1.25)
+  '(outline-2 :weight bold :height 1.15)
+  '(outline-3 :weight bold :height 1.12)
+  '(outline-4 :weight semi-bold :height 1.09)
+  '(outline-5 :weight semi-bold :height 1.06)
+  '(outline-6 :weight semi-bold :height 1.03)
+  '(outline-8 :weight semi-bold)
+  '(outline-9 :weight semi-bold))
+;; Headings:1 ends here
+
+;; [[file:config.org::*Deadlines][Deadlines:1]]
+(setq org-agenda-deadline-faces
+      '((1.001 . error)
+        (1.000 . org-warning)
+        (0.500 . org-upcoming-deadline)
+        (0.000 . org-upcoming-distant-deadline)))
+;; Deadlines:1 ends here
+
+;; [[file:config.org::*Font styling][Font styling:1]]
+(setq org-fontify-quote-and-verse-blocks t)
+;; Font styling:1 ends here
+
+;; [[file:config.org::*Font styling][Font styling:2]]
+(use-package! org-appear
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-appear-autoemphasis t
+        org-appear-autosubmarkers t
+        org-appear-autolinks nil)
+  ;; for proper first-time setup, `org-appear--set-elements'
+  ;; needs to be run after other hooks have acted.
+  (run-at-time nil nil #'org-appear--set-elements))
+;; Font styling:2 ends here
+
+;; [[file:config.org::*Inline blocks][Inline blocks:1]]
+(setq org-inline-src-prettify-results '("⟨" . "⟩")
+      doom-themes-org-fontify-special-tags nil)
+;; Inline blocks:1 ends here
+
+;; [[file:config.org::*Org Modern][Org Modern:1]]
+(use-package! org-modern
+  :hook (org-mode . org-modern-mode)
+  :config
+  (setq org-modern-star '("◉" "○" "◈" "◇" "✳" "◆" "✸" "▶")
+        org-modern-table-vertical 5
+        org-modern-table-horizontal 2
+        org-modern-list '((43 . "➤") (45 . "–") (42 . "•"))
+        org-modern-footnote (cons nil (cadr org-script-display))
+        org-modern-priority t
+        org-modern-block t
+        org-modern-block-fringe nil
+        org-modern-horizontal-rule t
+        org-modern-keyword
+        '((t                     . t)
+          ("title"               . "𝙏")
+          ("subtitle"            . "𝙩")
+          ("author"              . "𝘼")
+          ("email"               . "@")
+          ("date"                . "𝘿")
+          ("lastmod"             . "✎")
+          ("property"            . "☸")
+          ("options"             . "⌥")
+          ("startup"             . "⏻")
+          ("macro"               . "𝓜")
+          ("bind"                . #("" 0 1 (display (raise -0.1))))
+          ("bibliography"        . "")
+          ("print_bibliography"  . #("" 0 1 (display (raise -0.1))))
+          ("cite_export"         . "⮭")
+          ("print_glossary"      . #("ᴬᶻ" 0 1 (display (raise -0.1))))
+          ("glossary_sources"    . #("" 0 1 (display (raise -0.14))))
+          ("export_file_name"    . "⇒")
+          ("include"             . "⇤")
+          ("setupfile"           . "⇐")
+          ("html_head"           . "🅷")
+          ("html"                . "🅗")
+          ("latex_class"         . "🄻")
+          ("latex_class_options" . #("🄻" 1 2 (display (raise -0.14))))
+          ("latex_header"        . "🅻")
+          ("latex_header_extra"  . "🅻⁺")
+          ("latex"               . "🅛")
+          ("beamer_theme"        . "🄱")
+          ("beamer_color_theme"  . #("🄱" 1 2 (display (raise -0.12))))
+          ("beamer_font_theme"   . "🄱𝐀")
+          ("beamer_header"       . "🅱")
+          ("beamer"              . "🅑")
+          ("attr_latex"          . "🄛")
+          ("attr_html"           . "🄗")
+          ("attr_org"            . "⒪")
+          ("name"                . "⁍")
+          ("header"              . "›")
+          ("caption"             . "☰")
+          ("RESULTS"             . "🠶")
+          ("language"            . "𝙇")
+          ("hugo_base_dir"       . "𝐇")
+          ("latex_compiler"      . "⟾")
+          ("results"             . "🠶")
+          ("filetags"            . "#")
+          ("created"             . "⏱")
+          ("export_select_tags"  . "✔")
+          ("export_exclude_tags" . "❌")))
+
+  ;; Change faces
+  (custom-set-faces! '(org-modern-tag :inherit (region org-modern-label)))
+  (custom-set-faces! '(org-modern-statistics :inherit org-checkbox-statistics-todo)))
+;; Org Modern:1 ends here
+
+;; [[file:config.org::*Org Modern][Org Modern:2]]
+(when (modulep! :ui ligatures)
+  (defadvice! +org-init-appearance-h--no-ligatures-a ()
+    :after #'+org-init-appearance-h
+    (set-ligatures! 'org-mode
+                    :name nil
+                    :src_block nil
+                    :src_block_end nil
+                    :quote nil
+                    :quote_end nil)))
+;; Org Modern:2 ends here
+
+;; [[file:config.org::*Org Modern][Org Modern:3]]
+(use-package! org-ol-tree
+  :commands org-ol-tree
+  :config
+  (setq org-ol-tree-ui-icon-set
+        (if (and (display-graphic-p)
+                 (fboundp 'all-the-icons-material))
+            'all-the-icons
+          'unicode))
+  (org-ol-tree-ui--update-icon-set))
+
+(map! :localleader
+      :map org-mode-map
+      :desc "Outline" "O" #'org-ol-tree)
+;; Org Modern:3 ends here
+
+;; [[file:config.org::*Image previews][Image previews:1]]
+(defvar +org-responsive-image-percentage 0.4)
+(defvar +org-responsive-image-width-limits '(400 . 700)) ;; '(min-width . max-width)
+
+(defun +org--responsive-image-h ()
+  (when (eq major-mode 'org-mode)
+    (setq org-image-actual-width
+          (max (car +org-responsive-image-width-limits)
+               (min (cdr +org-responsive-image-width-limits)
+                    (truncate (* (window-pixel-width) +org-responsive-image-percentage)))))))
+
+(add-hook 'window-configuration-change-hook #'+org--responsive-image-h)
+;; Image previews:1 ends here
+
+;; [[file:config.org::*List bullet sequence][List bullet sequence:1]]
+(setq org-list-demote-modify-bullet
+      '(("+"  . "-")
+        ("-"  . "+")
+        ("*"  . "+")
+        ("1." . "a.")))
+;; List bullet sequence:1 ends here
+
+;; [[file:config.org::*Symbols][Symbols:1]]
+;; Org styling, hide markup etc.
+(setq org-hide-emphasis-markers t
+      org-pretty-entities t
+      org-ellipsis " ↩"
+      org-hide-leading-stars t)
+      ;; org-priority-highest ?A
+      ;; org-priority-lowest ?E
+      ;; org-priority-faces
+      ;; '((?A . 'all-the-icons-red)
+      ;;   (?B . 'all-the-icons-orange)
+      ;;   (?C . 'all-the-icons-yellow)
+      ;;   (?D . 'all-the-icons-green)
+      ;;   (?E . 'all-the-icons-blue)))
+;; Symbols:1 ends here
+
+;; [[file:config.org::*Prettier highlighting][Prettier highlighting:1]]
+(setq org-highlight-latex-and-related '(native script entities))
+
+(require 'org-src)
+(add-to-list 'org-src-block-faces '("latex" (:inherit default :extend t)))
+;; Prettier highlighting:1 ends here
+
+;; [[file:config.org::*Prettier rendering][Prettier rendering:1]]
+(setq org-format-latex-options
+      (plist-put org-format-latex-options :background "Transparent"))
+
+;; Can be dvipng, dvisvgm, imagemagick
+(setq org-preview-latex-default-process 'dvisvgm)
+
+;; Define a function to set the format latex scale (to be reused in hooks)
+(defun +org-format-latex-set-scale (scale)
+  (setq org-format-latex-options (plist-put org-format-latex-options :scale scale)))
+
+;; Set the default scale
+(+org-format-latex-set-scale 1.4)
+;; Prettier rendering:1 ends here
+
+;; [[file:config.org::*Better equation numbering][Better equation numbering:1]]
+(defun +parse-the-fun (str)
+  "Parse the LaTeX environment STR.
+Return an AST with newlines counts in each level."
+  (let (ast)
+    (with-temp-buffer
+      (insert str)
+      (goto-char (point-min))
+      (while (re-search-forward
+              (rx "\\"
+                  (group (or "\\" "begin" "end" "nonumber"))
+                  (zero-or-one "{" (group (zero-or-more not-newline)) "}"))
+              nil t)
+        (let ((cmd (match-string 1))
+              (env (match-string 2)))
+          (cond ((string= cmd "begin")
+                 (push (list :env (intern env)) ast))
+                ((string= cmd "\\")
+                 (let ((curr (pop ast)))
+                   (push (plist-put curr :newline (1+ (or (plist-get curr :newline) 0))) ast)))
+                ((string= cmd "nonumber")
+                 (let ((curr (pop ast)))
+                   (push (plist-put curr :nonumber (1+ (or (plist-get curr :nonumber) 0))) ast)))
+                ((string= cmd "end")
+                 (let ((child (pop ast))
+                       (parent (pop ast)))
+                   (push (plist-put parent :childs (cons child (plist-get parent :childs))) ast)))))))
+    (plist-get (car ast) :childs)))
+
+(defun +scimax-org-renumber-environment (orig-func &rest args)
+  "A function to inject numbers in LaTeX fragment previews."
+  (let ((results '())
+        (counter -1))
+    (setq results
+          (cl-loop for (begin . env) in
+                   (org-element-map (org-element-parse-buffer) 'latex-environment
+                     (lambda (env)
+                       (cons
+                        (org-element-property :begin env)
+                        (org-element-property :value env))))
+                   collect
+                   (cond
+                    ((and (string-match "\\\\begin{equation}" env)
+                          (not (string-match "\\\\tag{" env)))
+                     (cl-incf counter)
+                     (cons begin counter))
+                    ((string-match "\\\\begin{align}" env)
+                     (cl-incf counter)
+                     (let ((p (car (+parse-the-fun env))))
+                       ;; Parse the `env', count new lines in the align env as equations, unless
+                       (cl-incf counter (- (or (plist-get p :newline) 0)
+                                           (or (plist-get p :nonumber) 0))))
+                     (cons begin counter))
+                    (t
+                     (cons begin nil)))))
+    (when-let ((number (cdr (assoc (point) results))))
+      (setf (car args)
+            (concat
+             (format "\\setcounter{equation}{%s}\n" number)
+             (car args)))))
+  (apply orig-func args))
+
+(defun +scimax-toggle-latex-equation-numbering (&optional enable)
+  "Toggle whether LaTeX fragments are numbered."
+  (interactive)
+  (if (or enable (not (get '+scimax-org-renumber-environment 'enabled)))
+      (progn
+        (advice-add 'org-create-formula-image :around #'+scimax-org-renumber-environment)
+        (put '+scimax-org-renumber-environment 'enabled t)
+        (message "LaTeX numbering enabled."))
+    (advice-remove 'org-create-formula-image #'+scimax-org-renumber-environment)
+    (put '+scimax-org-renumber-environment 'enabled nil)
+    (message "LaTeX numbering disabled.")))
+
+(defun +scimax-org-inject-latex-fragment (orig-func &rest args)
+  "Advice function to inject latex code before and/or after the equation in a latex fragment.
+You can use this to set \\mathversion{bold} for example to make
+it bolder. The way it works is by defining
+:latex-fragment-pre-body and/or :latex-fragment-post-body in the
+variable `org-format-latex-options'. These strings will then be
+injected before and after the code for the fragment before it is
+made into an image."
+  (setf (car args)
+        (concat
+         (or (plist-get org-format-latex-options :latex-fragment-pre-body) "")
+         (car args)
+         (or (plist-get org-format-latex-options :latex-fragment-post-body) "")))
+  (apply orig-func args))
+
+(defun +scimax-toggle-inject-latex ()
+  "Toggle whether you can insert latex in fragments."
+  (interactive)
+  (if (not (get '+scimax-org-inject-latex-fragment 'enabled))
+      (progn
+        (advice-add 'org-create-formula-image :around #'+scimax-org-inject-latex-fragment)
+        (put '+scimax-org-inject-latex-fragment 'enabled t)
+        (message "Inject latex enabled"))
+    (advice-remove 'org-create-formula-image #'+scimax-org-inject-latex-fragment)
+    (put '+scimax-org-inject-latex-fragment 'enabled nil)
+    (message "Inject latex disabled")))
+
+;; Enable renumbering by default
+(+scimax-toggle-latex-equation-numbering t)
+;; Better equation numbering:1 ends here
+
+;; [[file:config.org::*Fragtog][Fragtog:1]]
+(use-package! org-fragtog
+  :hook (org-mode . org-fragtog-mode))
+;; Fragtog:1 ends here
+
+;; [[file:config.org::*Org plot][Org plot:1]]
+(after! org-plot
+  (defun org-plot/generate-theme (_type)
+    "Use the current Doom theme colours to generate a GnuPlot preamble."
+    (format "
+fgt = \"textcolor rgb '%s'\"  # foreground text
+fgat = \"textcolor rgb '%s'\" # foreground alt text
+fgl = \"linecolor rgb '%s'\"  # foreground line
+fgal = \"linecolor rgb '%s'\" # foreground alt line
+
+# foreground colors
+set border lc rgb '%s'
+# change text colors of  tics
+set xtics @fgt
+set ytics @fgt
+# change text colors of labels
+set title @fgt
+set xlabel @fgt
+set ylabel @fgt
+# change a text color of key
+set key @fgt
+
+# line styles
+set linetype 1 lw 2 lc rgb '%s' # red
+set linetype 2 lw 2 lc rgb '%s' # blue
+set linetype 3 lw 2 lc rgb '%s' # green
+set linetype 4 lw 2 lc rgb '%s' # magenta
+set linetype 5 lw 2 lc rgb '%s' # orange
+set linetype 6 lw 2 lc rgb '%s' # yellow
+set linetype 7 lw 2 lc rgb '%s' # teal
+set linetype 8 lw 2 lc rgb '%s' # violet
+
+# palette
+set palette maxcolors 8
+set palette defined ( 0 '%s',\
+1 '%s',\
+2 '%s',\
+3 '%s',\
+4 '%s',\
+5 '%s',\
+6 '%s',\
+7 '%s' )
+"
+            (doom-color 'fg)
+            (doom-color 'fg-alt)
+            (doom-color 'fg)
+            (doom-color 'fg-alt)
+            (doom-color 'fg)
+            ;; colours
+            (doom-color 'red)
+            (doom-color 'blue)
+            (doom-color 'green)
+            (doom-color 'magenta)
+            (doom-color 'orange)
+            (doom-color 'yellow)
+            (doom-color 'teal)
+            (doom-color 'violet)
+            ;; duplicated
+            (doom-color 'red)
+            (doom-color 'blue)
+            (doom-color 'green)
+            (doom-color 'magenta)
+            (doom-color 'orange)
+            (doom-color 'yellow)
+            (doom-color 'teal)
+            (doom-color 'violet)))
+
+  (defun org-plot/gnuplot-term-properties (_type)
+    (format "background rgb '%s' size 1050,650"
+            (doom-color 'bg)))
+
+  (setq org-plot/gnuplot-script-preamble #'org-plot/generate-theme
+        org-plot/gnuplot-term-extra #'org-plot/gnuplot-term-properties))
+;; Org plot:1 ends here
+
+;; [[file:config.org::*Large tables][Large tables:1]]
+(use-package! org-phscroll
+  :hook (org-mode . org-phscroll-mode))
+;; Large tables:1 ends here
+
+;; [[file:config.org::*BibTeX][BibTeX:1]]
+(setq bibtex-completion-bibliography +my/biblio-libraries-list
+      bibtex-completion-library-path +my/biblio-storage-list
+      bibtex-completion-notes-path +my/biblio-notes-path
+      bibtex-completion-notes-template-multiple-files "* ${author-or-editor}, ${title}, ${journal}, (${year}) :${=type=}: \n\nSee [[cite:&${=key=}]]\n"
+      bibtex-completion-additional-search-fields '(keywords)
+      bibtex-completion-display-formats
+      '((article       . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${journal:40}")
+        (inbook        . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} Chapter ${chapter:32}")
+        (incollection  . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${booktitle:40}")
+        (inproceedings . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${booktitle:40}")
+        (t             . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*}"))
+      bibtex-completion-pdf-open-function
+      (lambda (fpath)
+        (call-process "open" nil 0 nil fpath)))
+;; BibTeX:1 ends here
+
+;; [[file:config.org::*Org-bib][Org-bib:1]]
+(use-package! org-bib
+  :commands (org-bib-mode))
+;; Org-bib:1 ends here
+
+;; [[file:config.org::*Org-cite][Org-cite:1]]
+(after! oc
+  (setq org-cite-csl-styles-dir +my/biblio-styles-path)
+        ;; org-cite-global-bibliography +my/biblio-libraries-list)
+
+  (defun +org-ref-to-org-cite ()
+    "Simple conversion of org-ref citations to org-cite syntax."
+    (interactive)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "\\[cite\\(.*\\):\\([^]]*\\)\\]" nil t)
+        (let* ((old (substring (match-string 0) 1 (1- (length (match-string 0)))))
+               (new (s-replace "&" "@" old)))
+          (message "Replaced citation %s with %s" old new)
+          (replace-match new))))))
+;; Org-cite:1 ends here
+
+;; [[file:config.org::*Citar][Citar:1]]
+(after! citar
+  (setq citar-library-paths +my/biblio-storage-list
+        citar-notes-paths  (list +my/biblio-notes-path)
+        citar-bibliography  +my/biblio-libraries-list
+        citar-symbol-separator "  ")
+
+  (when (display-graphic-p)
+    (setq citar-symbols
+          `((file ,(all-the-icons-octicon "file-pdf"      :face 'error) . " ")
+            (note ,(all-the-icons-octicon "file-text"     :face 'warning) . " ")
+            (link ,(all-the-icons-octicon "link-external" :face 'org-link) . " ")))))
+
+(use-package! citar-org-roam
+  :after citar org-roam
+  :no-require
+  :config (citar-org-roam-mode)
+  :init
+  ;; Modified form: https://jethrokuan.github.io/org-roam-guide/
+  (defun +org-roam-node-from-cite (entry-key)
+    (interactive (list (citar-select-ref)))
+    (let ((title (citar-format--entry
+                  "${author editor} (${date urldate}) :: ${title}"
+                  (citar-get-entry entry-key))))
+      (org-roam-capture- :templates
+                         '(("r" "reference" plain
+                            "%?"
+                            :if-new (file+head "references/${citekey}.org"
+                                               ":properties:
+:roam_refs: [cite:@${citekey}]
+:end:
+#+title: ${title}\n")
+                            :immediate-finish t
+                            :unnarrowed t))
+                         :info (list :citekey entry-key)
+                         :node (org-roam-node-create :title title)
+                         :props '(:finalize find-file)))))
+;; Citar:1 ends here
