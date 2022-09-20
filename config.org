@@ -1052,6 +1052,154 @@ Set some custom icons for some file extensions, basically for =.m= files.
         highlight-indent-guides-responsive 'top))
 #+end_src
 
+* Package Configuration
+** Editing :edit:
+*** File templates :template:
+- Chúng ta có thể ghi đè một vài mode chung snippet's vào một thư mục.
+
+#+begin_src emacs-lisp
+(set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
+(set-file-template! "\\.org$" :trigger "__" :mode 'org-mode)
+(set-file-template! "/LICEN[CS]E$" :trigger '+file-templates/insert-license)
+#+end_src
+
+*** Scratch buffer :scratch:
+- Tell the scratch buffer to start in =emacs-lisp-mode=.
+
+#+begin_src emacs-lisp
+(setq doom-scratch-initial-major-mode 'emacs-lisp-mode)
+#+end_src
+
+*** Very large files :large:vlf:
+- Hỗ trợ tải file lớn với cách tải từng phần nhỏ, giúp sử dụng file lớn dễ dàng hơn.
+#+begin_src emacs-lisp :tangle packages.el
+(package! vlf :pin "cc02f2533782d6b9b628cec7e2dcf25b2d05a27c")
+#+end_src
+
+- Dể sử dụng VLF mà không bị delay khi khởi động, chúng ta chỉ load nó trong im
+  lặng under the hood.
+#+begin_src emacs-lisp
+(use-package! vlf-setup
+  :defer-incrementally vlf-tune vlf-base vlf-write vlf-search vlf-occur vlf-follow vlf-ediff vlf)
+#+end_src
+
+*** Evil :evil:
+
+#+begin_src emacs-lisp
+(after! evil
+  ;; This fixes https://github.com/doomemacs/doomemacs/issues/6478
+  ;; Ref: https://github.com/emacs-evil/evil/issues/1630
+  (evil-select-search-module 'evil-search-module 'isearch)
+
+  (setq evil-kill-on-visual-paste nil)) ; Don't put overwritten text in the kill ring
+#+end_src
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! evil-escape :disable t)
+#+end_src
+
+*** Aggressive indent
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! aggressive-indent
+  :commands (aggressive-indent-mode))
+#+end_src
+
+*** YASnippet :snippet:
+Nested snippets are good, enable that.
+
+#+begin_src emacs-lisp
+(setq yas-triggers-in-field t)
+#+end_src
+
+** Symbols :symbol:
+*** Emojify :emoji:
+- Cài đặt emoji của Twitter.
+
+#+begin_src emacs-lisp
+(setq emojify-emoji-set "twemoji-v2")
+#+end_src
+- Một vấn đề khi sử dụng emoji là nó sẽ ưu tiên sử dụng các ký hiệu mặc định,
+  Điều này thương sảy ra với các overlay symbol trên org mode. Chúng ta sẽ xoá
+  nó khỏi mục emoji.
+
+#+begin_src emacs-lisp
+(defvar emojify-disabled-emojis
+  '(;; Org
+    "◼" "☑" "☸" "⚙" "⏩" "⏪" "⬆" "⬇" "❓" "⏱" "®" "™" "🅱" "❌" "✳"
+    ;; Terminal powerline
+    "✔"
+    ;; Box drawing
+    "▶" "◀")
+  "Characters that should never be affected by `emojify-mode'.")
+
+(defadvice! emojify-delete-from-data ()
+  "Ensure `emojify-disabled-emojis' don't appear in `emojify-emojis'."
+  :after #'emojify-set-emoji-data
+  (dolist (emoji emojify-disabled-emojis)
+    (remhash emoji emojify-emojis)))
+#+end_src
+
+- Chúng ta sẽ chạy một minor mode cho phép bạn nhập các biểu tượng emoji, và
+  chuyển sang unicode.
+
+#+begin_src emacs-lisp
+(defun emojify--replace-text-with-emoji (orig-fn emoji text buffer start end &optional target)
+  "Modify `emojify--propertize-text-for-emoji' to replace ascii/github emoticons with unicode emojis, on the fly."
+  (if (or (not emoticon-to-emoji) (= 1 (length text)))
+      (funcall orig-fn emoji text buffer start end target)
+    (delete-region start end)
+    (insert (ht-get emoji "unicode"))))
+
+(define-minor-mode emoticon-to-emoji
+  "Write ascii/gh emojis, and have them converted to unicode live."
+  :global nil
+  :init-value nil
+  (if emoticon-to-emoji
+      (progn
+        (setq-local emojify-emoji-styles '(ascii github unicode))
+        (advice-add 'emojify--propertize-text-for-emoji :around #'emojify--replace-text-with-emoji)
+        (unless emojify-mode
+          (emojify-turn-on-emojify-mode)))
+    (setq-local emojify-emoji-styles (default-value 'emojify-emoji-styles))
+    (advice-remove 'emojify--propertize-text-for-emoji #'emojify--replace-text-with-emoji)))
+#+end_src
+
+- Kết hợp chức năng này cho email & mu4e
+
+#+begin_src emacs-lisp
+(add-hook! '(mu4e-compose-mode org-msg-edit-mode circe-channel-mode) (emoticon-to-emoji 1))
+#+end_src
+
+*** Ligatures :ligatures:
+- Vũ muốn vô hiệu hoá các extra ligature trên một vài mode (rust, c++, python,
+  scheme). Thường chỉ giữ lại sử dụng cho emacs-lisp mode.
+
+#+begin_src emacs-lisp
+(defun +appened-to-negation-list (head tail)
+  (if (sequencep head)
+      (delete-dups
+       (if (eq (car tail) 'not)
+           (append head tail)
+         (append tail head)))
+    tail))
+
+(when (modulep! :ui ligatures)
+  (setq +ligatures-extras-in-modes
+        (+appened-to-negation-list
+         +ligatures-extras-in-modes
+         '(not c-mode c++-mode emacs-lisp-mode python-mode scheme-mode racket-mode rust-mode)))
+
+  (setq +ligatures-in-modes
+        (+appened-to-negation-list
+         +ligatures-in-modes
+         '(not emacs-lisp-mode scheme-mode racket-mode))))
+#+end_src
+
 * Completion & IDE :ide:
 *** Which key :key:
 Make =which-key= popup faster.
@@ -1072,7 +1220,6 @@ Make =which-key= popup faster.
             '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
             '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
 #+end_src
-
 
 *** Company :company:
 **** Disabled for some mode
@@ -1282,4 +1429,195 @@ current buffer's, reload dir-locals."
     (add-hook 'after-save-hook '+dir-locals-reload-for-all-buffers-in-this-directory nil t)))
 
 (add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
+#+end_src
+
+*** Language Server Protocol :lsp:
+**** Eglot :eglot:
+Eglot uses =project.el= to detect the project root. This is [[https://github.com/joaotavora/eglot/issues/129#issuecomment-444130367][a workaround]] to make
+it work with =projectile=:
+
+#+begin_src emacs-lisp
+(after! eglot
+  ;; A hack to make it works with projectile
+  (defun projectile-project-find-function (dir)
+    (let* ((root (projectile-project-root dir)))
+      (and root (cons 'transient root))))
+
+  (with-eval-after-load 'project
+    (add-to-list 'project-find-functions 'projectile-project-find-function))
+
+  ;; Use clangd with some options
+  (set-eglot-client! 'c++-mode '("clangd" "-j=3" "--clang-tidy")))
+#+end_src
+
+**** LSP mode :ide:lsp:
+***** Unpin package
+
+#+begin_src emacs-lisp :tangle packages.el
+(unpin! lsp-mode)
+#+end_src
+
+***** Tweaks
+****** Performance
+Use ~plist~ instead of hash table, LSP mode needs to be reinstalled after setting
+this environment variable ([[https://emacs-lsp.github.io/lsp-mode/page/performance/#use-plists-for-deserialization][see]]).
+
+#+begin_src emacs-lisp
+(after! lsp-mode
+  (setq lsp-idle-delay 1.0
+        lsp-log-io nil
+        gc-cons-threshold (* 1024 1024 100))) ;; 100MiB
+#+end_src
+
+****** Features & UI :diagnostics:ui:
+LSP mode provides a [[https://emacs-lsp.github.io/lsp-mode/tutorials/how-to-turn-off/][set of configurable UI stuff]]. By default, Doom Emacs
+disables some UI components; however, I like to enable some less intrusive, more
+useful UI stuff.
+
+#+begin_src emacs-lisp
+(after! lsp-mode
+  (setq lsp-lens-enable t
+        lsp-semantic-tokens-enable t ;; hide unreachable ifdefs
+        lsp-enable-symbol-highlighting t
+        lsp-headerline-breadcrumb-enable nil
+        ;; LSP UI related tweaks
+        lsp-ui-sideline-enable nil
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-symbol nil
+        lsp-ui-sideline-show-diagnostics nil
+        lsp-ui-sideline-show-code-actions nil))
+#+end_src
+
+***** LSP mode with =clangd= :clangd:c:cpp:
+
+#+begin_src emacs-lisp
+(after! lsp-clangd
+  (setq lsp-clients-clangd-args
+        '("-j=4"
+          "--background-index"
+          "--clang-tidy"
+          "--completion-style=detailed"
+          "--header-insertion=never"
+          "--header-insertion-decorators=0"))
+  (set-lsp-priority! 'clangd 1))
+#+end_src
+
+***** LSP mode with =ccls= :ccls:c:cpp:
+
+#+begin_src emacs-lisp :tangle no
+;; NOTE: Not tangled, using the default ccls
+(after! ccls
+  (setq ccls-initialization-options
+        '(:index (:comments 2
+                  :trackDependency 1
+                  :threads 4)
+          :completion (:detailedLabel t)))
+  (set-lsp-priority! 'ccls 2)) ; optional as ccls is the default in Doom
+#+end_src
+
+***** Enable =lsp= over =tramp= :tramp:
+****** Python :python:
+
+#+begin_src emacs-lisp
+(after! tramp
+  (when (require 'lsp-mode nil t)
+    ;; (require 'lsp-pyright)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-tramp-connection "pyls")
+      :major-modes '(python-mode)
+      :remote? t
+      :server-id 'pyls-remote))))
+#+end_src
+
+****** C/C++ with =ccls= :ccls:
+
+#+begin_src emacs-lisp :tangle no
+;; NOTE: WIP: Not tangled
+(after! tramp
+  (when (require 'lsp-mode nil t)
+    (require 'ccls)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          lsp-enable-symbol-highlighting t)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection
+      (lsp-tramp-connection
+       (lambda ()
+         (cons ccls-executable ; executable name on remote machine 'ccls'
+               ccls-args)))
+      :major-modes '(c-mode c++-mode objc-mode cuda-mode)
+      :remote? t
+      :server-id 'ccls-remote)))
+
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+#+end_src
+
+****** C/C++ with =clangd= :clangd:
+
+#+begin_src emacs-lisp
+(after! tramp
+  (when (require 'lsp-mode nil t)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection
+      (lsp-tramp-connection
+       (lambda ()
+         (cons "clangd-12" ; executable name on remote machine 'ccls'
+               lsp-clients-clangd-args)))
+      :major-modes '(c-mode c++-mode objc-mode cuda-mode)
+      :remote? t
+      :server-id 'clangd-remote))))
+#+end_src
+
+***** VHDL
+By default, LSP uses the proprietary VHDL-Tool to provide LSP features; however,
+there is free and open source alternatives: =ghdl-ls= and =rust_hdl=. I have some
+issues running =ghdl-ls= installed form =pip= through the =pyghdl= package, so let's
+use =rust_hdl= instead.
+
+#+begin_src emacs-lisp
+(use-package! vhdl-mode
+  :when (and (modulep! :tools lsp) (not (modulep! :tools lsp +eglot)))
+  :hook (vhdl-mode . #'+lsp-vhdl-ls-load)
+  :init
+  (defun +lsp-vhdl-ls-load ()
+    (interactive)
+    (lsp t)
+    (flycheck-mode t))
+
+  :config
+  ;; Required unless vhdl_ls is on the $PATH
+  (setq lsp-vhdl-server-path "~/Projects/foss/repos/rust_hdl/target/release/vhdl_ls"
+        lsp-vhdl-server 'vhdl-ls
+        lsp-vhdl--params nil)
+  (require 'lsp-vhdl))
+#+end_src
+
+***** SonarLint
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! lsp-sonarlint
+  :disable t :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! lsp-sonarlint)
 #+end_src

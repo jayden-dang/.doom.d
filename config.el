@@ -451,6 +451,107 @@
         highlight-indent-guides-responsive 'top))
 ;; Highlight indent guides:1 ends here
 
+;; [[file:config.org::*File templates][File templates:1]]
+(set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
+(set-file-template! "\\.org$" :trigger "__" :mode 'org-mode)
+(set-file-template! "/LICEN[CS]E$" :trigger '+file-templates/insert-license)
+;; File templates:1 ends here
+
+;; [[file:config.org::*Scratch buffer][Scratch buffer:1]]
+(setq doom-scratch-initial-major-mode 'emacs-lisp-mode)
+;; Scratch buffer:1 ends here
+
+;; [[file:config.org::*Very large files][Very large files:2]]
+(use-package! vlf-setup
+  :defer-incrementally vlf-tune vlf-base vlf-write vlf-search vlf-occur vlf-follow vlf-ediff vlf)
+;; Very large files:2 ends here
+
+;; [[file:config.org::*Evil][Evil:1]]
+(after! evil
+  ;; This fixes https://github.com/doomemacs/doomemacs/issues/6478
+  ;; Ref: https://github.com/emacs-evil/evil/issues/1630
+  (evil-select-search-module 'evil-search-module 'isearch)
+
+  (setq evil-kill-on-visual-paste nil)) ; Don't put overwritten text in the kill ring
+;; Evil:1 ends here
+
+;; [[file:config.org::*Aggressive indent][Aggressive indent:2]]
+(use-package! aggressive-indent
+  :commands (aggressive-indent-mode))
+;; Aggressive indent:2 ends here
+
+;; [[file:config.org::*YASnippet][YASnippet:1]]
+(setq yas-triggers-in-field t)
+;; YASnippet:1 ends here
+
+;; [[file:config.org::*Emojify][Emojify:1]]
+(setq emojify-emoji-set "twemoji-v2")
+;; Emojify:1 ends here
+
+;; [[file:config.org::*Emojify][Emojify:2]]
+(defvar emojify-disabled-emojis
+  '(;; Org
+    "◼" "☑" "☸" "⚙" "⏩" "⏪" "⬆" "⬇" "❓" "⏱" "®" "™" "🅱" "❌" "✳"
+    ;; Terminal powerline
+    "✔"
+    ;; Box drawing
+    "▶" "◀")
+  "Characters that should never be affected by `emojify-mode'.")
+
+(defadvice! emojify-delete-from-data ()
+  "Ensure `emojify-disabled-emojis' don't appear in `emojify-emojis'."
+  :after #'emojify-set-emoji-data
+  (dolist (emoji emojify-disabled-emojis)
+    (remhash emoji emojify-emojis)))
+;; Emojify:2 ends here
+
+;; [[file:config.org::*Emojify][Emojify:3]]
+(defun emojify--replace-text-with-emoji (orig-fn emoji text buffer start end &optional target)
+  "Modify `emojify--propertize-text-for-emoji' to replace ascii/github emoticons with unicode emojis, on the fly."
+  (if (or (not emoticon-to-emoji) (= 1 (length text)))
+      (funcall orig-fn emoji text buffer start end target)
+    (delete-region start end)
+    (insert (ht-get emoji "unicode"))))
+
+(define-minor-mode emoticon-to-emoji
+  "Write ascii/gh emojis, and have them converted to unicode live."
+  :global nil
+  :init-value nil
+  (if emoticon-to-emoji
+      (progn
+        (setq-local emojify-emoji-styles '(ascii github unicode))
+        (advice-add 'emojify--propertize-text-for-emoji :around #'emojify--replace-text-with-emoji)
+        (unless emojify-mode
+          (emojify-turn-on-emojify-mode)))
+    (setq-local emojify-emoji-styles (default-value 'emojify-emoji-styles))
+    (advice-remove 'emojify--propertize-text-for-emoji #'emojify--replace-text-with-emoji)))
+;; Emojify:3 ends here
+
+;; [[file:config.org::*Emojify][Emojify:4]]
+(add-hook! '(mu4e-compose-mode org-msg-edit-mode circe-channel-mode) (emoticon-to-emoji 1))
+;; Emojify:4 ends here
+
+;; [[file:config.org::*Ligatures][Ligatures:1]]
+(defun +appened-to-negation-list (head tail)
+  (if (sequencep head)
+      (delete-dups
+       (if (eq (car tail) 'not)
+           (append head tail)
+         (append tail head)))
+    tail))
+
+(when (modulep! :ui ligatures)
+  (setq +ligatures-extras-in-modes
+        (+appened-to-negation-list
+         +ligatures-extras-in-modes
+         '(not c-mode c++-mode emacs-lisp-mode python-mode scheme-mode racket-mode rust-mode)))
+
+  (setq +ligatures-in-modes
+        (+appened-to-negation-list
+         +ligatures-in-modes
+         '(not emacs-lisp-mode scheme-mode racket-mode))))
+;; Ligatures:1 ends here
+
 ;; [[file:config.org::*Which key][Which key:1]]
 (setq which-key-idle-delay 0.5 ;; Default is 1.0
       which-key-idle-secondary-delay 0.05) ;; Default is nil
@@ -653,3 +754,113 @@ current buffer's, reload dir-locals."
 
 (add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
 ;; =dir-locals.el=:1 ends here
+
+;; [[file:config.org::*Eglot][Eglot:1]]
+(after! eglot
+  ;; A hack to make it works with projectile
+  (defun projectile-project-find-function (dir)
+    (let* ((root (projectile-project-root dir)))
+      (and root (cons 'transient root))))
+
+  (with-eval-after-load 'project
+    (add-to-list 'project-find-functions 'projectile-project-find-function))
+
+  ;; Use clangd with some options
+  (set-eglot-client! 'c++-mode '("clangd" "-j=3" "--clang-tidy")))
+;; Eglot:1 ends here
+
+;; [[file:config.org::*Performance][Performance:1]]
+(after! lsp-mode
+  (setq lsp-idle-delay 1.0
+        lsp-log-io nil
+        gc-cons-threshold (* 1024 1024 100))) ;; 100MiB
+;; Performance:1 ends here
+
+;; [[file:config.org::*Features & UI][Features & UI:1]]
+(after! lsp-mode
+  (setq lsp-lens-enable t
+        lsp-semantic-tokens-enable t ;; hide unreachable ifdefs
+        lsp-enable-symbol-highlighting t
+        lsp-headerline-breadcrumb-enable nil
+        ;; LSP UI related tweaks
+        lsp-ui-sideline-enable nil
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-symbol nil
+        lsp-ui-sideline-show-diagnostics nil
+        lsp-ui-sideline-show-code-actions nil))
+;; Features & UI:1 ends here
+
+;; [[file:config.org::*LSP mode with =clangd=][LSP mode with =clangd=:1]]
+(after! lsp-clangd
+  (setq lsp-clients-clangd-args
+        '("-j=4"
+          "--background-index"
+          "--clang-tidy"
+          "--completion-style=detailed"
+          "--header-insertion=never"
+          "--header-insertion-decorators=0"))
+  (set-lsp-priority! 'clangd 1))
+;; LSP mode with =clangd=:1 ends here
+
+;; [[file:config.org::*Python][Python:1]]
+(after! tramp
+  (when (require 'lsp-mode nil t)
+    ;; (require 'lsp-pyright)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-tramp-connection "pyls")
+      :major-modes '(python-mode)
+      :remote? t
+      :server-id 'pyls-remote))))
+;; Python:1 ends here
+
+;; [[file:config.org::*C/C++ with =clangd=][C/C++ with =clangd=:1]]
+(after! tramp
+  (when (require 'lsp-mode nil t)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection
+      (lsp-tramp-connection
+       (lambda ()
+         (cons "clangd-12" ; executable name on remote machine 'ccls'
+               lsp-clients-clangd-args)))
+      :major-modes '(c-mode c++-mode objc-mode cuda-mode)
+      :remote? t
+      :server-id 'clangd-remote))))
+;; C/C++ with =clangd=:1 ends here
+
+;; [[file:config.org::*VHDL][VHDL:1]]
+(use-package! vhdl-mode
+  :when (and (modulep! :tools lsp) (not (modulep! :tools lsp +eglot)))
+  :hook (vhdl-mode . #'+lsp-vhdl-ls-load)
+  :init
+  (defun +lsp-vhdl-ls-load ()
+    (interactive)
+    (lsp t)
+    (flycheck-mode t))
+
+  :config
+  ;; Required unless vhdl_ls is on the $PATH
+  (setq lsp-vhdl-server-path "~/Projects/foss/repos/rust_hdl/target/release/vhdl_ls"
+        lsp-vhdl-server 'vhdl-ls
+        lsp-vhdl--params nil)
+  (require 'lsp-vhdl))
+;; VHDL:1 ends here
+
+;; [[file:config.org::*SonarLint][SonarLint:2]]
+(use-package! lsp-sonarlint)
+;; SonarLint:2 ends here

@@ -26,3 +26,24 @@
   :disable EMACS29+
   :pin "a7ffd5c0e5935cebd545a0570f64949077f71ee3")
 ;; Scrolling:1 ends here
+
+;; [[file:config.org::*Very large files][Very large files:1]]
+(package! vlf :pin "cc02f2533782d6b9b628cec7e2dcf25b2d05a27c")
+;; Very large files:1 ends here
+
+;; [[file:config.org::*Evil][Evil:2]]
+(package! evil-escape :disable t)
+;; Evil:2 ends here
+
+;; [[file:config.org::*Aggressive indent][Aggressive indent:1]]
+(package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
+;; Aggressive indent:1 ends here
+
+;; [[file:config.org::*Unpin package][Unpin package:1]]
+(unpin! lsp-mode)
+;; Unpin package:1 ends here
+
+;; [[file:config.org::*SonarLint][SonarLint:1]]
+(package! lsp-sonarlint
+  :disable t :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+;; SonarLint:1 ends here
