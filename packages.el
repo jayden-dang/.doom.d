@@ -237,3 +237,16 @@
            :repo "nbfalcon/flycheck-projectile")
   :pin "ce6e9e8793a55dace13d5fa13badab2dca3b5ddb")
 ;; Flycheck + Projectile:1 ends here
+
+;; [[file:config.org::*Graphviz][Graphviz:1]]
+(package! graphviz-dot-mode :pin "6e96a89762760935a7dff6b18393396f6498f976")
+;; Graphviz:1 ends here
+
+;; [[file:config.org::*Mermaid][Mermaid:1]]
+(package! mermaid-mode :pin "a98a9e733b1da1e6a19e68c1db4367bf46283479")
+
+(package! ob-mermaid
+  :recipe (:host github
+           :repo "arnm/ob-mermaid")
+  :pin "b4ce25699e3ebff054f523375d1cf5a17bd0dbaf")
+;; Mermaid:1 ends here

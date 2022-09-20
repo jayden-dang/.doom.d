@@ -2626,6 +2626,49 @@ WIP: Not working atm!
   :commands flycheck-projectile-list-errors)
 #+end_src
 
+** Graphviz :graph:graphviz:dot:
+Graphviz is a nice method of visualizing simple graphs, based on th DOT graph
+description language (~*.dot~ / ~*.gv~ files).
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! graphviz-dot-mode :pin "6e96a89762760935a7dff6b18393396f6498f976")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! graphviz-dot-mode
+  :commands graphviz-dot-mode
+  :mode ("\\.dot\\'" "\\.gv\\'")
+  :init
+  (after! org
+    (setcdr (assoc "dot" org-src-lang-modes) 'graphviz-dot))
+
+  :config
+  (require 'company-graphviz-dot))
+#+end_src
+
+** Mermaid :graph:mermaid:
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! mermaid-mode :pin "a98a9e733b1da1e6a19e68c1db4367bf46283479")
+
+(package! ob-mermaid
+  :recipe (:host github
+           :repo "arnm/ob-mermaid")
+  :pin "b4ce25699e3ebff054f523375d1cf5a17bd0dbaf")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! mermaid-mode
+  :commands mermaid-mode
+  :mode "\\.mmd\\'")
+
+(use-package! ob-mermaid
+  :after org
+  :init
+  (after! org
+    (add-to-list 'org-babel-load-languages '(mermaid . t))))
+#+end_src
+
 * Text
 * Rust format :rust:format:
 For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format

@@ -1522,3 +1522,27 @@ current buffer's, reload dir-locals."
 (use-package! flycheck-projectile
   :commands flycheck-projectile-list-errors)
 ;; Flycheck + Projectile:2 ends here
+
+;; [[file:config.org::*Graphviz][Graphviz:2]]
+(use-package! graphviz-dot-mode
+  :commands graphviz-dot-mode
+  :mode ("\\.dot\\'" "\\.gv\\'")
+  :init
+  (after! org
+    (setcdr (assoc "dot" org-src-lang-modes) 'graphviz-dot))
+
+  :config
+  (require 'company-graphviz-dot))
+;; Graphviz:2 ends here
+
+;; [[file:config.org::*Mermaid][Mermaid:2]]
+(use-package! mermaid-mode
+  :commands mermaid-mode
+  :mode "\\.mmd\\'")
+
+(use-package! ob-mermaid
+  :after org
+  :init
+  (after! org
+    (add-to-list 'org-babel-load-languages '(mermaid . t))))
+;; Mermaid:2 ends here
