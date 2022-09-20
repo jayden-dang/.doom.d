@@ -2516,6 +2516,13 @@ Display Git information (author, date, message...) for current line
                    :italic t))))
 #+end_src
 
+** ESS :ess:stats:r:
+View data frames better with
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ess-view :pin "925cafd876e2cc37bc756bb7fcf3f34534b457e2")
+#+end_src
+
 * Text
 * Rust format :rust:format:
 For Rust code base, the file =$HOME/.rustfmt.toml= contains the global format

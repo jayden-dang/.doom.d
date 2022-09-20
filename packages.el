@@ -191,3 +191,7 @@
            :repo "artawower/blamer.el")
   :pin "99b43779341af0d924bfe2a9103993a6b9e3d3b2")
 ;; Blamer:1 ends here
+
+;; [[file:config.org::*ESS][ESS:1]]
+(package! ess-view :pin "925cafd876e2cc37bc756bb7fcf3f34534b457e2")
+;; ESS:1 ends here
