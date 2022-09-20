@@ -901,25 +901,6 @@ Change the logo to an image, a set of beautiful images can be found in =assets=.
 (setq-hook! '+doom-dashboard-mode-hook evil-normal-state-cursor (list nil))
 #+end_src
 
-** Window title :title:
-I'd like to have just the buffer name, then if applicable the project folder.
-
-#+begin_src emacs-lisp
-(setq frame-title-format
-      '(""
-        (:eval
-         (if (s-contains-p org-roam-directory (or buffer-file-name ""))
-             (replace-regexp-in-string ".*/[0-9]*-?" "☰ "
-                                       (subst-char-in-string ?_ ?\s buffer-file-name))
-           "%b"))
-        (:eval
-         (when-let* ((project-name (projectile-project-name))
-                     (project-name (if (string= "-" project-name)
-                                       (ignore-errors (file-name-base (string-trim-right (vc-root-dir))))
-                                     project-name)))
-           (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
-#+end_src
-
 ** SVG tag and =svg-lib= :svg:
 
 #+begin_src emacs-lisp :tangle "packages.el"

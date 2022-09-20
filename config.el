@@ -321,22 +321,6 @@
 (setq-hook! '+doom-dashboard-mode-hook evil-normal-state-cursor (list nil))
 ;; Dashboard:1 ends here
 
-;; [[file:config.org::*Window title][Window title:1]]
-(setq frame-title-format
-      '(""
-        (:eval
-         (if (s-contains-p org-roam-directory (or buffer-file-name ""))
-             (replace-regexp-in-string ".*/[0-9]*-?" "☰ "
-                                       (subst-char-in-string ?_ ?\s buffer-file-name))
-           "%b"))
-        (:eval
-         (when-let* ((project-name (projectile-project-name))
-                     (project-name (if (string= "-" project-name)
-                                       (ignore-errors (file-name-base (string-trim-right (vc-root-dir))))
-                                     project-name)))
-           (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
-;; Window title:1 ends here
-
 ;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:2]]
 (use-package! svg-tag-mode
   :commands svg-tag-mode
