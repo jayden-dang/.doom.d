@@ -916,3 +916,47 @@ current buffer's, reload dir-locals."
     (setq hide-ifdef-shadow t
           hide-ifdef-initially t)))
 ;; C/C++ preprocessor conditions:1 ends here
+
+;; [[file:config.org::*DAP][DAP:2]]
+(after! dap-mode
+  ;; Set latest versions
+  (setq dap-cpptools-extension-version "1.11.5")
+  (require 'dap-cpptools)
+
+  (setq dap-codelldb-extension-version "1.7.4")
+  (require 'dap-codelldb)
+
+  (setq dap-gdb-lldb-extension-version "0.26.0")
+  (require 'dap-gdb-lldb)
+
+  ;; More minimal UI
+  (setq dap-auto-configure-features '(breakpoints locals expressions tooltip)
+        dap-auto-show-output nil ;; Hide the annoying server output
+        lsp-enable-dap-auto-configure t)
+
+  ;; Automatically trigger dap-hydra when a program hits a breakpoint.
+  (add-hook 'dap-stopped-hook (lambda (arg) (call-interactively #'dap-hydra)))
+
+  ;; Automatically delete session and close dap-hydra when DAP is terminated.
+  (add-hook 'dap-terminated-hook
+            (lambda (arg)
+              (call-interactively #'dap-delete-session)
+              (dap-hydra/nil)))
+
+  ;; A workaround to correctly show breakpoints
+  ;; from: https://github.com/emacs-lsp/dap-mode/issues/374#issuecomment-1140399819
+  (add-hook! +dap-running-session-mode
+    (set-window-buffer nil (current-buffer))))
+;; DAP:2 ends here
+
+;; [[file:config.org::*Doom store][Doom store:1]]
+(defun +debugger/clear-last-session ()
+  "Clear the last stored session"
+  (interactive)
+  (doom-store-clear "+debugger"))
+
+(map! :leader :prefix ("l" . "custom")
+      (:when (modulep! :tools debugger +lsp)
+       :prefix ("d" . "debugger")
+       :desc "Clear last DAP session" "c" #'+debugger/clear-last-session))
+;; Doom store:1 ends here

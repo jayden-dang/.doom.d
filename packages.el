@@ -84,3 +84,7 @@
            :repo "emacsorphanage/cpp-auto-include")
   :pin "0ce829f27d466c083e78b9fe210dcfa61fb417f4")
 ;; Auto-include C++ headers:1 ends here
+
+;; [[file:config.org::*DAP][DAP:1]]
+(unpin! dap-mode)
+;; DAP:1 ends here
