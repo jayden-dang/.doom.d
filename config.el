@@ -337,20 +337,6 @@
            (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
 ;; Window title:1 ends here
 
-;; [[file:config.org::*Which key][Which key:1]]
-(setq which-key-idle-delay 0.5 ;; Default is 1.0
-      which-key-idle-secondary-delay 0.05) ;; Default is nil
-;; Which key:1 ends here
-
-;; [[file:config.org::*Which key][Which key:2]]
-(setq which-key-allow-multiple-replacements t)
-
-(after! which-key
-  (pushnew! which-key-replacement-alist
-            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
-            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
-;; Which key:2 ends here
-
 ;; [[file:config.org::*SVG tag and =svg-lib=][SVG tag and =svg-lib=:2]]
 (use-package! svg-tag-mode
   :commands svg-tag-mode
@@ -409,3 +395,35 @@
       auto-window-vscroll nil
       fast-but-imprecise-scrolling nil)
 ;; Scrolling:2 ends here
+
+;; [[file:config.org::*All the icons][All the icons:1]]
+(after! all-the-icons
+  (setcdr (assoc "m" all-the-icons-extension-icon-alist)
+          (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
+;; All the icons:1 ends here
+
+;; [[file:config.org::*Tabs][Tabs:1]]
+(after! centaur-tabs
+  ;; For some reason, setting `centaur-tabs-set-bar' this to `right'
+  ;; instead of Doom's default `left', fixes this issue with Emacs daemon:
+  ;; https://github.com/doomemacs/doomemacs/issues/6647#issuecomment-1229365473
+  (setq centaur-tabs-set-bar 'right
+        centaur-tabs-gray-out-icons 'buffer
+        centaur-tabs-set-modified-marker t
+        centaur-tabs-close-button "⨂"
+        centaur-tabs-modified-marker "⨀"))
+;; Tabs:1 ends here
+
+;; [[file:config.org::*Which key][Which key:1]]
+(setq which-key-idle-delay 0.5 ;; Default is 1.0
+      which-key-idle-secondary-delay 0.05) ;; Default is nil
+;; Which key:1 ends here
+
+;; [[file:config.org::*Which key][Which key:2]]
+(setq which-key-allow-multiple-replacements t)
+
+(after! which-key
+  (pushnew! which-key-replacement-alist
+            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
+            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
+;; Which key:2 ends here

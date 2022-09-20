@@ -821,7 +821,7 @@ frame/terminal is deleted.
         :desc "Toggle Modus theme" "m" #'modus-themes-toggle))
 #+end_src
 
-*** Mode line :modeline:
+** Mode line :modeline:
 **** Clock
 - Display time and set the format to 24h.
 
@@ -860,7 +860,7 @@ frame/terminal is deleted.
         doom-modeline-buffer-file-name-style 'truncate-upto-project))
 #+end_src
 
-*** Set transparency & Full Screen :transparent:
+** Set transparency & Full Screen :transparent:
 
 #+begin_src emacs-lisp
 ;; set transparent
@@ -872,7 +872,7 @@ frame/terminal is deleted.
 (add-hook 'org-mode-hook 'turn-on-auto-fill)
 #+end_src
 
-*** Dashboard :splash:dashboard:
+** Dashboard :splash:dashboard:
 **** Custom splash image :image:banner:
 Change the logo to an image, a set of beautiful images can be found in =assets=.
 
@@ -889,7 +889,7 @@ Change the logo to an image, a set of beautiful images can be found in =assets=.
 (setq-hook! '+doom-dashboard-mode-hook evil-normal-state-cursor (list nil))
 #+end_src
 
-*** Window title :title:
+** Window title :title:
 I'd like to have just the buffer name, then if applicable the project folder.
 
 #+begin_src emacs-lisp
@@ -908,28 +908,7 @@ I'd like to have just the buffer name, then if applicable the project folder.
            (format (if (buffer-modified-p) " ○ %s" " ● %s") project-name)))))
 #+end_src
 
-* Completion & IDE :ide:
-*** Which key :key:
-Make =which-key= popup faster.
-
-#+begin_src emacs-lisp
-(setq which-key-idle-delay 0.5 ;; Default is 1.0
-      which-key-idle-secondary-delay 0.05) ;; Default is nil
-#+end_src
-
-- Tôi sử ăn cắp config này từ "tecosaur's config", nó giúp replace các evil
-  =prefix= với unicode symbok, giúp cho which-key xịn xò hơn.
-
-#+begin_src emacs-lisp
-(setq which-key-allow-multiple-replacements t)
-
-(after! which-key
-  (pushnew! which-key-replacement-alist
-            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
-            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
-#+end_src
-
-*** SVG tag and =svg-lib= :svg:
+** SVG tag and =svg-lib= :svg:
 
 #+begin_src emacs-lisp :tangle "packages.el"
 (package! svg-tag-mode :pin "efd22edf650fb25e665269ba9fed7ccad0771a2f")
@@ -969,7 +948,7 @@ Make =which-key= popup faster.
   (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
 #+end_src
 
-*** Focus :focus:
+** Focus :focus:
 Dim the font color of text in surrounding paragraphs, focus only on the current line.
 
 #+begin_src emacs-lisp :tangle packages.el
@@ -981,7 +960,7 @@ Dim the font color of text in surrounding paragraphs, focus only on the current 
   :commands focus-mode)
 #+end_src
 
-*** Scrolling
+** Scrolling
 
 #+begin_src emacs-lisp :tangle packages.el
 (package! good-scroll
@@ -1008,3 +987,48 @@ Dim the font color of text in surrounding paragraphs, focus only on the current 
       auto-window-vscroll nil
       fast-but-imprecise-scrolling nil)
 #+end_src
+
+** All the icons :icon:
+Set some custom icons for some file extensions, basically for =.m= files.
+
+#+begin_src emacs-lisp
+(after! all-the-icons
+  (setcdr (assoc "m" all-the-icons-extension-icon-alist)
+          (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
+#+end_src
+
+** Tabs
+
+#+begin_src emacs-lisp
+(after! centaur-tabs
+  ;; For some reason, setting `centaur-tabs-set-bar' this to `right'
+  ;; instead of Doom's default `left', fixes this issue with Emacs daemon:
+  ;; https://github.com/doomemacs/doomemacs/issues/6647#issuecomment-1229365473
+  (setq centaur-tabs-set-bar 'right
+        centaur-tabs-gray-out-icons 'buffer
+        centaur-tabs-set-modified-marker t
+        centaur-tabs-close-button "⨂"
+        centaur-tabs-modified-marker "⨀"))
+#+end_src
+
+* Completion & IDE :ide:
+*** Which key :key:
+Make =which-key= popup faster.
+
+#+begin_src emacs-lisp
+(setq which-key-idle-delay 0.5 ;; Default is 1.0
+      which-key-idle-secondary-delay 0.05) ;; Default is nil
+#+end_src
+
+- Tôi sử ăn cắp config này từ "tecosaur's config", nó giúp replace các evil
+  =prefix= với unicode symbok, giúp cho which-key xịn xò hơn.
+
+#+begin_src emacs-lisp
+(setq which-key-allow-multiple-replacements t)
+
+(after! which-key
+  (pushnew! which-key-replacement-alist
+            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
+            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
+#+end_src
+
