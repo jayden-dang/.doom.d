@@ -300,10 +300,15 @@
         doom-modeline-buffer-file-name-style 'truncate-upto-project))
 ;; Mode line customization:1 ends here
 
-;; [[file:config.org::*Set transparency][Set transparency:1]]
+;; [[file:config.org::*Set transparency & Full Screen][Set transparency & Full Screen:1]]
+;; set transparent
 (set-frame-parameter (selected-frame) 'alpha '(97 100))
 (add-to-list 'default-frame-alist '(alpha 97 100))
-;; Set transparency:1 ends here
+
+;; full screen
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+(add-hook 'org-mode-hook 'turn-on-auto-fill)
+;; Set transparency & Full Screen:1 ends here
 
 ;; [[file:config.org::*Custom splash image][Custom splash image:1]]
 (setq fancy-splash-image (expand-file-name "assets/doom-emacs-gray.svg" doom-user-dir))

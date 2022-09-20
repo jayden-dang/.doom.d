@@ -860,11 +860,16 @@ frame/terminal is deleted.
         doom-modeline-buffer-file-name-style 'truncate-upto-project))
 #+end_src
 
-*** Set transparency :transparent:
+*** Set transparency & Full Screen :transparent:
 
 #+begin_src emacs-lisp
+;; set transparent
 (set-frame-parameter (selected-frame) 'alpha '(97 100))
 (add-to-list 'default-frame-alist '(alpha 97 100))
+
+;; full screen
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+(add-hook 'org-mode-hook 'turn-on-auto-fill)
 #+end_src
 
 *** Dashboard :splash:dashboard:
