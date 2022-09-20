@@ -8,3 +8,7 @@
            :repo "casouri/vundo")
   :pin "16a09774ddfbd120d625cdd35fcf480e76e278bb")
 ;; Visual undo (=vundo=):1 ends here
+
+;; [[file:config.org::*Modus themes][Modus themes:1]]
+(package! modus-themes)
+;; Modus themes:1 ends here
