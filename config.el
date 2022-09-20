@@ -389,3 +389,23 @@
 (use-package! focus
   :commands focus-mode)
 ;; Focus:2 ends here
+
+;; [[file:config.org::*Scrolling][Scrolling:2]]
+(use-package! good-scroll
+  :unless EMACS29+
+  :config (good-scroll-mode 1))
+
+(when EMACS29+
+  (pixel-scroll-precision-mode 1))
+
+(setq hscroll-step 1
+      hscroll-margin 0
+      scroll-step 1
+      scroll-margin 0
+      scroll-conservatively 101
+      scroll-up-aggressively 0.01
+      scroll-down-aggressively 0.01
+      scroll-preserve-screen-position 'always
+      auto-window-vscroll nil
+      fast-but-imprecise-scrolling nil)
+;; Scrolling:2 ends here

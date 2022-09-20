@@ -20,3 +20,9 @@
 ;; [[file:config.org::*Focus][Focus:1]]
 (package! focus :pin "9dd85fc474bbc1ebf22c287752c960394fcd465a")
 ;; Focus:1 ends here
+
+;; [[file:config.org::*Scrolling][Scrolling:1]]
+(package! good-scroll
+  :disable EMACS29+
+  :pin "a7ffd5c0e5935cebd545a0570f64949077f71ee3")
+;; Scrolling:1 ends here

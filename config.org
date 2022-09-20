@@ -980,3 +980,31 @@ Dim the font color of text in surrounding paragraphs, focus only on the current 
 (use-package! focus
   :commands focus-mode)
 #+end_src
+
+*** Scrolling
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! good-scroll
+  :disable EMACS29+
+  :pin "a7ffd5c0e5935cebd545a0570f64949077f71ee3")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! good-scroll
+  :unless EMACS29+
+  :config (good-scroll-mode 1))
+
+(when EMACS29+
+  (pixel-scroll-precision-mode 1))
+
+(setq hscroll-step 1
+      hscroll-margin 0
+      scroll-step 1
+      scroll-margin 0
+      scroll-conservatively 101
+      scroll-up-aggressively 0.01
+      scroll-down-aggressively 0.01
+      scroll-preserve-screen-position 'always
+      auto-window-vscroll nil
+      fast-but-imprecise-scrolling nil)
+#+end_src
