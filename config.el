@@ -7,10 +7,17 @@
 ;;
 (setq user-full-name "Dang Quang Vu"
       user-mail-address "vugomars@gmail.com"
+      user-blog-url "https://www.vugomars.com"
 
       ;; Split horizontally to right, vertically below the current window.
       evil-vsplit-window-right t
       evil-split-window-below t
+
+
+      ispell-program-name "/usr/local/bin/aspell"
+      racer-rust-src-path "~/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library"
+      racer-rust-src-path "~/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library"
+      parinfer-rust-library "~/.emacs.d/.local/etc/parinfer-rust"
 
       ;; Enable relative line number
       display-line-numbers-type 'relative
@@ -1659,6 +1666,35 @@ current buffer's, reload dir-locals."
           hide-ifdef-initially t)))
 ;; C/C++ preprocessor conditions:1 ends here
 
+;; [[file:config.org::*Company][Company:1]]
+(use-package! company-solidity
+  :after (company))
+
+
+(use-package! solidity-mode
+  :config
+  (setq format-all-mode nil))
+(setq-hook! 'solidity-mode-hook +format-all-mode nil)
+
+(add-hook 'solidity-mode-hook
+          (lambda ()
+            (set (make-local-variable 'company-backends)
+                 (append '((company-solidity company-capf company-dabbrev-code))
+                         company-backends))))
+;; Company:1 ends here
+
+;; [[file:config.org::*flycheck][flycheck:1]]
+(use-package! solidity-flycheck
+  :config
+  (setq solidity-solc-path "~/.nvm/version/node/v16.17.0/lib/node_modules/solc/solc")
+  (setq solidity-solium-path "~/.nvm/version/node/v16.17.0/bin/solium")
+  (setq solidity-flycheck-solc-checker-active t)
+  (setq solidity-flycheck-solium-checker-active t)
+  (setq flycheck-solidity-solc-addstd-contracts t)
+  (setq flycheck-solidity-solium-soliumrcfile "~/.soliumrc.json")
+)
+;; flycheck:1 ends here
+
 ;; [[file:config.org::*DAP][DAP:2]]
 (after! dap-mode
   ;; Set latest versions
@@ -1702,6 +1738,149 @@ current buffer's, reload dir-locals."
        :prefix ("d" . "debugger")
        :desc "Clear last DAP session" "c" #'+debugger/clear-last-session))
 ;; Doom store:1 ends here
+
+;; [[file:config.org::*multi-iedit][multi-iedit:2]]
+(use-package! maple-iedit
+   :commands (maple-iedit-match-all maple-iedit-match-next maple-iedit-match-previous)
+   :config
+   (delete-selection-mode t)
+   (setq maple-iedit-ignore-case t)
+   (defhydra maple/iedit ()
+     ("n" maple-iedit-match-next "next")
+     ("t" maple-iedit-skip-and-match-next "skip and next")
+     ("T" maple-iedit-skip-and-match-previous "skip and previous")
+     ("p" maple-iedit-match-previous "prev"))
+   :bind (:map evil-visual-state-map
+          ("n" . maple/iedit/body)
+          ("C-n" . maple-iedit-match-next)
+          ("C-p" . maple-iedit-match-previous)
+          ("C-t" . map-iedit-skip-and-match-next)
+          ("C-T" . map-iedit-skip-and-match-previous)))
+;; multi-iedit:2 ends here
+
+;; [[file:config.org::*exec-path-from-shell][exec-path-from-shell:2]]
+(use-package! exec-path-from-shell
+  :init (exec-path-from-shell-initialize))
+;; exec-path-from-shell:2 ends here
+
+;; [[file:config.org::*engine-mode][engine-mode:2]]
+(use-package engine-mode
+  :config
+  (engine/set-keymap-prefix (kbd "C-c s"))
+  (setq browse-url-browser-function 'browse-url-default-macosx-browser
+        engine/browser-function 'browse-url-default-macosx-browser
+        ;; browse-url-generic-program "google-chrome"
+        )
+  (defengine duckduckgo
+    "https://duckduckgo.com/?q=%s"
+    :keybinding "d")
+
+  (defengine github
+    "https://github.com/search?ref=simplesearch&q=%s"
+    :keybinding "1")
+
+  (defengine gitlab
+    "https://gitlab.com/search?search=%s&group_id=&project_id=&snippets=false&repository_ref=&nav_source=navbar"
+    :keybinding "2")
+
+  (defengine stack-overflow
+    "https://stackoverflow.com/search?q=%s"
+    :keybinding "s")
+
+  (defengine npm
+    "https://www.npmjs.com/search?q=%s"
+    :keybinding "n")
+
+  (defengine crates
+    "https://crates.io/search?q=%s"
+    :keybinding "c")
+
+  (defengine localhost
+    "http://localhost:%s"
+    :keybinding "l")
+
+  (defengine translate
+    "https://translate.google.com/?sl=en&tl=vi&text=%s&op=translate"
+    :keybinding "t")
+
+  (defengine youtube
+    "http://www.youtube.com/results?aq=f&oq=&search_query=%s"
+    :keybinding "y")
+
+  (defengine google
+    "http://www.google.com/search?ie=utf-8&oe=utf-8&q=%s"
+    :keybinding "g")
+
+  (engine-mode 1))
+;; engine-mode:2 ends here
+
+;; [[file:config.org::*leetcode][leetcode:1]]
+(after! leetcode
+  (setq leetcode-prefer-language "rust"
+        leetcode-prefer-sql "mysql"
+        leetcode-save-solutions t
+        leetcode-directory "~/Dropbox/vugomars/leetcode")
+  (set-popup-rule! "^\\*leetcode" :actions '(open-popup-on-side-or-below)))
+;; leetcode:1 ends here
+
+;; [[file:config.org::*bm][bm:2]]
+(use-package bm
+         :ensure t
+         :demand t
+
+         :init
+         ;; restore on load (even before you require bm)
+         (setq bm-restore-repository-on-load t)
+
+
+         :config
+         ;; Allow cross-buffer 'next'
+         (setq bm-cycle-all-buffers t)
+
+         ;; where to store persistant files
+         (setq bm-repository-file "~/.emacs.d/bm-repository")
+
+         ;; save bookmarks
+         (setq-default bm-buffer-persistence t)
+
+         ;; Loading the repository from file when on start up.
+         (add-hook 'after-init-hook 'bm-repository-load)
+
+         ;; Saving bookmarks
+         (add-hook 'kill-buffer-hook #'bm-buffer-save)
+
+         ;; Saving the repository to file when on exit.
+         ;; kill-buffer-hook is not called when Emacs is killed, so we
+         ;; must save all bookmarks first.
+         (add-hook 'kill-emacs-hook #'(lambda nil
+                                          (bm-buffer-save-all)
+                                          (bm-repository-save)))
+
+         ;; The `after-save-hook' is not necessary to use to achieve persistence,
+         ;; but it makes the bookmark data in repository more in sync with the file
+         ;; state.
+         (add-hook 'after-save-hook #'bm-buffer-save)
+
+         ;; Restoring bookmarks
+         (add-hook 'find-file-hooks   #'bm-buffer-restore)
+         (add-hook 'after-revert-hook #'bm-buffer-restore)
+
+         ;; The `after-revert-hook' is not necessary to use to achieve persistence,
+         ;; but it makes the bookmark data in repository more in sync with the file
+         ;; state. This hook might cause trouble when using packages
+         ;; that automatically reverts the buffer (like vc after a check-in).
+         ;; This can easily be avoided if the package provides a hook that is
+         ;; called before the buffer is reverted (like `vc-before-checkin-hook').
+         ;; Then new bookmarks can be saved before the buffer is reverted.
+         ;; Make sure bookmarks is saved before check-in (and revert-buffer)
+         (add-hook 'vc-before-checkin-hook #'bm-buffer-save)
+
+
+         :bind (("C-s-0" . bm-toggle)
+                ("C-s-j" . bm-next)
+                ("C-s-k" . bm-previous))
+         )
+;; bm:2 ends here
 
 ;; [[file:config.org::*Maxima][Maxima:2]]
 (use-package! maxima
@@ -2624,6 +2803,17 @@ current buffer's, reload dir-locals."
     (run-at-time nil nil #'org-appear--set-elements))
   (setq org-inline-src-prettify-results '("⟨" . "⟩")
         doom-themes-org-fontify-special-tags nil)
+  (defvar +org-responsive-image-percentage 0.4)
+  (defvar +org-responsive-image-width-limits '(400 . 700)) ;; '(min-width . max-width)
+  
+  (defun +org--responsive-image-h ()
+    (when (eq major-mode 'org-mode)
+      (setq org-image-actual-width
+            (max (car +org-responsive-image-width-limits)
+                 (min (cdr +org-responsive-image-width-limits)
+                      (truncate (* (window-pixel-width) +org-responsive-image-percentage)))))))
+  
+  (add-hook 'window-configuration-change-hook #'+org--responsive-image-h)
   (use-package! org-modern
     :hook (org-mode . org-modern-mode)
     :config
@@ -2688,15 +2878,6 @@ current buffer's, reload dir-locals."
     ;; Change faces
     (custom-set-faces! '(org-modern-tag :inherit (region org-modern-label)))
     (custom-set-faces! '(org-modern-statistics :inherit org-checkbox-statistics-todo)))
-  (when (modulep! :ui ligatures)
-    (defadvice! +org-init-appearance-h--no-ligatures-a ()
-      :after #'+org-init-appearance-h
-      (set-ligatures! 'org-mode
-                      :name nil
-                      :src_block nil
-                      :src_block_end nil
-                      :quote nil
-                      :quote_end nil)))
   (use-package! org-ol-tree
     :commands org-ol-tree
     :config
@@ -2710,17 +2891,6 @@ current buffer's, reload dir-locals."
   (map! :localleader
         :map org-mode-map
         :desc "Outline" "O" #'org-ol-tree)
-  (defvar +org-responsive-image-percentage 0.4)
-  (defvar +org-responsive-image-width-limits '(400 . 700)) ;; '(min-width . max-width)
-  
-  (defun +org--responsive-image-h ()
-    (when (eq major-mode 'org-mode)
-      (setq org-image-actual-width
-            (max (car +org-responsive-image-width-limits)
-                 (min (cdr +org-responsive-image-width-limits)
-                      (truncate (* (window-pixel-width) +org-responsive-image-percentage)))))))
-  
-  (add-hook 'window-configuration-change-hook #'+org--responsive-image-h)
   (setq org-list-demote-modify-bullet
         '(("+"  . "-")
           ("-"  . "+")
@@ -3152,3 +3322,37 @@ current buffer's, reload dir-locals."
   (add-hook 'before-save-hook 'time-stamp nil)
   (setq org-hugo-auto-set-lastmod t)
 )
+
+;; [[file:config.org::*Plain text][Plain text:1]]
+(after! text-mode
+  (add-hook! 'text-mode-hook
+    (unless (derived-mode-p 'org-mode)
+      ;; Apply ANSI color codes
+      (with-silent-modifications
+        (ansi-color-apply-on-region (point-min) (point-max) t)))))
+;; Plain text:1 ends here
+
+;; [[file:config.org::*Academic phrases][Academic phrases:1]]
+(use-package! academic-phrases
+  :commands (academic-phrases
+             academic-phrases-by-section))
+;; Academic phrases:1 ends here
+
+;; [[file:config.org::*Yanking multi-lines paragraphs][Yanking multi-lines paragraphs:1]]
+(defun +helper-paragraphized-yank ()
+  "Copy, then remove newlines and Org styling (/*_~)."
+  (interactive)
+  (copy-region-as-kill nil nil t)
+  (with-temp-buffer
+    (yank)
+    ;; Remove newlines, and Org styling (/*_~)
+    (goto-char (point-min))
+    (let ((case-fold-search nil))
+      (while (re-search-forward "[\n/*_~]" nil t)
+        (replace-match (if (s-matches-p (match-string 0) "\n") " " "") t)))
+    (kill-region (point-min) (point-max))))
+
+(map! :localleader
+      :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
+      :desc "Paragraphized yank" "y" #'+helper-paragraphized-yank)
+;; Yanking multi-lines paragraphs:1 ends here

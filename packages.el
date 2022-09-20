@@ -145,6 +145,22 @@
 (unpin! dap-mode)
 ;; DAP:1 ends here
 
+;; [[file:config.org::*multi-iedit][multi-iedit:1]]
+
+;; multi-iedit:1 ends here
+
+;; [[file:config.org::*exec-path-from-shell][exec-path-from-shell:1]]
+(package! exec-path-from-shell)
+;; exec-path-from-shell:1 ends here
+
+;; [[file:config.org::*engine-mode][engine-mode:1]]
+(package! engine-mode)
+;; engine-mode:1 ends here
+
+;; [[file:config.org::*bm][bm:1]]
+(package! bm)
+;; bm:1 ends here
+
 ;; [[file:config.org::*Maxima][Maxima:1]]
 (package! maxima
   :recipe (:host github
