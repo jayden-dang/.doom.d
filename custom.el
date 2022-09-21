@@ -4,7 +4,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(prettier-rc solidity-flycheck prettier leetcode exec-path-from-shell visual-regexp unidecode unicode-fonts ox-latex-subfigure org-pdftools org-modern org-link-beautify org-fragtog modus-themes lsp-ltex lsp-latex lsp-grammarly latex-preview-pane latex-math-preview latex-extra latex-change-env flymake-grammarly flycheck-grammarly engine-mode emojify cdlatex auctex-latexmk ascii-table)))
+   '(move-text ob-solidity prettier-rc solidity-flycheck prettier leetcode exec-path-from-shell visual-regexp unidecode unicode-fonts ox-latex-subfigure org-pdftools org-modern org-link-beautify org-fragtog modus-themes lsp-ltex lsp-latex lsp-grammarly latex-preview-pane latex-math-preview latex-extra latex-change-env flymake-grammarly flycheck-grammarly engine-mode emojify cdlatex auctex-latexmk ascii-table)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

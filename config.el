@@ -14,7 +14,7 @@
       evil-split-window-below t
 
 
-      ispell-program-name "/usr/local/bin/aspell"
+      ispell-program-name "/opt/homebrew/bin/aspell"
       racer-rust-src-path "~/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library"
       racer-rust-src-path "~/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library"
       parinfer-rust-library "~/.emacs.d/.local/etc/parinfer-rust"
@@ -44,6 +44,7 @@
 (defvar +my/lang-main          "en")
 (defvar +my/lang-secondary     "cn")
 (defvar +my/lang-mother-tongue "vn")
+(defvar myAddress "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
 
 (defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
 (defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
@@ -557,14 +558,12 @@ Uses `current-date-time-format' for the formatting the date/time."
 (define-key evil-normal-state-map (kbd ",") nil)
 (define-key evil-visual-state-map (kbd ",") nil)
 
-(global-set-key (kbd "<f1>") 'dqv-everything/body)
 (global-set-key (kbd "<f2>") 'rgrep)
 (global-set-key (kbd "<f5>") 'deadgrep)
 (global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
 ;; (global-set-key (kbd "<f8>") 'quickrun)
 (global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
-(global-set-key (kbd "<S-f12>") '+vc/smerge-hydra/body)
-(global-set-key (kbd "M-z") 'zzz-to-char)
+(global-set-key (kbd "M-z") 'dqv-launcher/body)
 ;; (global-set-key (kbd "C-t") '+vterm/toggle)
 ;; (global-set-key (kbd "C-S-t") '+vterm/here)
 ;; (global-set-key (kbd "C-d") 'kill-current-buffer)
@@ -3356,3 +3355,12 @@ current buffer's, reload dir-locals."
       :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
       :desc "Paragraphized yank" "y" #'+helper-paragraphized-yank)
 ;; Yanking multi-lines paragraphs:1 ends here
+
+;; [[file:config.org::*Hydra][Hydra:1]]
+(defhydra dqv-launcher (:color blue :columns 3)
+   "Launch"
+   ("a" (insert  myAddress) "dev-address")
+   ("b" (browse-url "https://vugomars.com") "my-blog")
+   ("g" (browse-url "http://www.github.com/vugomars") "github")
+   )
+;; Hydra:1 ends here

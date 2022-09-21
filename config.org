@@ -536,7 +536,7 @@ store the result in global constants.
       evil-split-window-below t
 
 
-      ispell-program-name "/usr/local/bin/aspell"
+      ispell-program-name "/opt/homebrew/bin/aspell"
       racer-rust-src-path "~/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library"
       racer-rust-src-path "~/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library"
       parinfer-rust-library "~/.emacs.d/.local/etc/parinfer-rust"
@@ -569,6 +569,7 @@ store the result in global constants.
 (defvar +my/lang-main          "en")
 (defvar +my/lang-secondary     "cn")
 (defvar +my/lang-mother-tongue "vn")
+(defvar myAddress "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
 
 (defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
 (defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
@@ -1189,14 +1190,12 @@ Keybindings reference:
 ** F1~12(kbd)
 
 #+begin_src emacs-lisp
-(global-set-key (kbd "<f1>") 'dqv-everything/body)
 (global-set-key (kbd "<f2>") 'rgrep)
 (global-set-key (kbd "<f5>") 'deadgrep)
 (global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
 ;; (global-set-key (kbd "<f8>") 'quickrun)
 (global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
-(global-set-key (kbd "<S-f12>") '+vc/smerge-hydra/body)
-(global-set-key (kbd "M-z") 'zzz-to-char)
+(global-set-key (kbd "M-z") 'dqv-launcher/body)
 ;; (global-set-key (kbd "C-t") '+vterm/toggle)
 ;; (global-set-key (kbd "C-S-t") '+vterm/here)
 ;; (global-set-key (kbd "C-d") 'kill-current-buffer)
@@ -5011,4 +5010,14 @@ todo = "Always"
 #+begin_src shell :comments no :tangle ~/.zshrc
 export PATH="/usr/local/bin:/usr/local/mongodb/bin:$PATH"
 alias mongod="mongod --dbpath ~/Documents/mongodb"
+#+end_src
+
+** Hydra
+#+begin_src emacs-lisp
+(defhydra dqv-launcher (:color blue :columns 3)
+   "Launch"
+   ("a" (insert  myAddress) "dev-address")
+   ("b" (browse-url "https://vugomars.com") "my-blog")
+   ("g" (browse-url "http://www.github.com/vugomars") "github")
+   )
 #+end_src
