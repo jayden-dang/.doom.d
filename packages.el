@@ -146,7 +146,8 @@
 ;; DAP:1 ends here
 
 ;; [[file:config.org::*multi-iedit][multi-iedit:1]]
-
+(package! maple-iedit
+  :recipe `(:local-repo ,(expand-file-name "lisp/maple-iedit" doom-user-dir)))
 ;; multi-iedit:1 ends here
 
 ;; [[file:config.org::*exec-path-from-shell][exec-path-from-shell:1]]

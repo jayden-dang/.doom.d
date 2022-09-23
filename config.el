@@ -44,7 +44,6 @@
 (defvar +my/lang-main          "en")
 (defvar +my/lang-secondary     "cn")
 (defvar +my/lang-mother-tongue "vn")
-(defvar myAddress "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
 
 (defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
 (defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
@@ -420,8 +419,8 @@ Uses `current-date-time-format' for the formatting the date/time."
 
 ;; [[file:config.org::*Set transparency & Full Screen][Set transparency & Full Screen:1]]
 ;; set transparent
-(set-frame-parameter (selected-frame) 'alpha '(97 100))
-(add-to-list 'default-frame-alist '(alpha 97 100))
+(set-frame-parameter (selected-frame) 'alpha '(100 100))
+(add-to-list 'default-frame-alist '(alpha 100 100))
 
 ;; full screen
 (add-to-list 'initial-frame-alist '(fullscreen . maximized))
@@ -575,8 +574,8 @@ Uses `current-date-time-format' for the formatting the date/time."
 ;; avy
 :nv    "f"     #'avy-goto-char-2
 :nv    "F"     #'avy-goto-char
-:nv    "w"     #'avy-goto-word-1
-:nv    "W"     #'avy-goto-word-0
+:nv    "w"     #'avy-goto-char-timer
+:nv    "W"     #'avy-goto-word-1
 
 ;; view scroll mode
 :nv    "C-n"   #'scroll-half-page-up
@@ -636,7 +635,7 @@ Uses `current-date-time-format' for the formatting the date/time."
 ;; "s-_"          #'sp-rewrap-sexp
 
 "M-i"          #'parrot-rotate-next-word-at-point
-"M--"          #'dqv/goto-match-paren
+"s-;"          #'dqv/goto-match-paren
 )
 
 (map! :leader
@@ -3181,8 +3180,8 @@ current buffer's, reload dir-locals."
     (add-to-list 'org-latex-packages-alist '("" "svg")))
   
   (add-to-list 'org-latex-packages-alist '("svgnames" "xcolor"))
-  ;; (add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
-  ;; (add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
+  (add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
+  (add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
   ;; Should be configured per document, as a local variable
   ;; (setq org-latex-listings 'minted)
   ;; (add-to-list 'org-latex-packages-alist '("" "minted"))
@@ -3357,10 +3356,18 @@ current buffer's, reload dir-locals."
 ;; Yanking multi-lines paragraphs:1 ends here
 
 ;; [[file:config.org::*Hydra][Hydra:1]]
+(defun insert-my-address ()
+  "insert the my developement Address"
+  (interactive)
+  (insert "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
+  )
+
 (defhydra dqv-launcher (:color blue :columns 3)
    "Launch"
-   ("a" (insert  myAddress) "dev-address")
+   ("a" (insert-my-address) "dev-address")
    ("b" (browse-url "https://vugomars.com") "my-blog")
-   ("g" (browse-url "http://www.github.com/vugomars") "github")
+   ("gg" (browse-url "https://github.com/vugomars?tab=repositories") "GitHub")
+   ("e" (browse-url "https://remix.ethereum.org/") "Remix Ethereum")
+   ("gr" (browse-url "https://github.com/vugomars/rust-algorithms") "Github rustAlgorithms")
    )
 ;; Hydra:1 ends here
