@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: latex-header
+# key: #+lt
+# --
+#+latex_header: $0

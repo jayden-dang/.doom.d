@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: rinkeby network
+# key: rinkeby
+# --
+    rinkeby: {
+      host: "localhost",
+      provider: function () {
+        return new HDWalletProvider(MNEMONIC, ${1:API});
+      },
+      network_id: 4,
+      gas: 3000000,
+      gasPrice: 10000000000,
+    },

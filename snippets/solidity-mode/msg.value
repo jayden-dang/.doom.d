@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: msg.value
+# key: MV
+# --
+msg.value$0

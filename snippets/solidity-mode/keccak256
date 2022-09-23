@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: keccak256
+# key: keccak256
+# --
+keccak256(abi.encodePacked($0))

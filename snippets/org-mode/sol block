@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: sol block
+# key: <sol
+# --
+#+begin_src solidity
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0 <0.9.0;
+
+contract ${1:Name} {
+         $0
+}
+#+end_src

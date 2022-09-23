@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: mapping
+# key: map
+# --
+mapping(${1:$$(yas-choose-value '("address" "uint" "bool"))} => ${2:$$(yas-choose-value '("address" "uint" "bool"))}) ${3:$$(yas-choose-value '("public" "private" "internal"))} ${4:Name};
