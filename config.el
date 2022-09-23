@@ -3366,7 +3366,7 @@ current buffer's, reload dir-locals."
    "Launch"
    ("a" (insert-my-address) "dev-address")
    ("b" (browse-url "https://vugomars.com") "my-blog")
-   ("gg" (browse-url "https://github.com/vugomars?tab=repositories") "GitHub")
+   ;; ("g" (browse-url "https://github.com/vugomars?tab=repositories") "GitHub")
    ("e" (browse-url "https://remix.ethereum.org/") "Remix Ethereum")
    ("gr" (browse-url "https://github.com/vugomars/rust-algorithms") "Github rustAlgorithms")
    )
