@@ -1,0 +1,4929 @@
+% Created 2022-10-03 Mon 14:44
+% Intended LaTeX compiler: xelatex
+\documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
+\usepackage[svgnames]{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
+\usepackage[svgnames]{xcolor}
+\author{Dang Quang Vu\thanks{vugomars@gmail.com}}
+\date{\today}
+\title{Doom Emacs Configuration\\\medskip
+\large Emacs configuration for work and life!}
+\hypersetup{
+ pdfauthor={Dang Quang Vu},
+ pdftitle={Doom Emacs Configuration},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Made with Emacs 28.2 and Org 9.6}, 
+ pdflang={English}}
+\usepackage{biblatex}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+
+\section{Doom Configuration Files}
+\label{sec:org2e65108}
+\subsection{Pseudo early-init}
+\label{sec:orgdbad092}
+\subsubsection{Heading-args}
+\label{sec:org35b11c1}
+\begin{itemize}
+\item This file will be loaded before the content of Doom's private \texttt{init.el}, I add some special stuff which I want to load very early.
+\item File này sẽ được load trước khi dữ liệu trong file init.el được khởi chạy, Tôi muốn thêm 1 vài stuff đặc biệt và trong file này.
+\end{itemize}
+
+\begin{verbatim}
+;;; pseudo-early-init.el -*- coding: utf-8-unix; lexical-binding: t; -*-
+
+\end{verbatim}
+
+\subsubsection{Useful functions}
+\label{sec:org3cc9ee5}
+\begin{itemize}
+\item Trong file này chúng ta sẽ định nghĩa 1 vài function, một trong số chúng có thể dược sử dụng trong các file config. Nó có thể được sử dụng trong một vài gói package, nhưng vũ thich tự định nghĩa nó hơn.
+\end{itemize}
+
+\begin{verbatim}
+;;; === Primitives ===
+
+;; (+bool "someval") ;; ==> t
+(defun +bool (val) (not (null val)))
+
+;;; === Higher order functions ===
+
+;; (+foldr (lambda (a b) (message "(%d + %d)" a b) (+ a b)) 0 '(1 2 3 4 5)) ;; ==> 15
+;; (5 + 0) -> (4 + 5) -> (3 + 9) -> (2 + 12) --> (1 + 14)
+(defun +foldr (fun acc seq)
+  (if (null seq) acc
+    (funcall fun (car seq) (+foldr fun acc (cdr seq)))))
+
+;; (+foldl (lambda (a b) (message "(%d + %d)" a b) (+ a b)) 0 '(1 2 3 4 5)) ;; ==> 15
+;; (0 + 1) -> (1 + 2) -> (3 + 3) -> (6 + 4) -> (10 + 5)
+(defun +foldl (fun acc seq)
+  (if (null seq) acc
+    (+foldl fun (funcall fun acc (car seq)) (cdr seq))))
+
+;; (+all '(83 88 t "txt")) ;; ==> t
+(defun +all (seq)
+  (+foldr (lambda (r l) (and r l)) t seq))
+
+;; (+some '(nil nil "text" nil 2)) ;; ==> t
+(defun +some (seq)
+  (+bool (+foldr (lambda (r l) (or r l)) nil seq)))
+
+;; (+filter 'stringp '("A" 2 "C" nil 3)) ;; ==> ("A" "C")
+(defun +filter (fun seq)
+  (when seq
+    (let ((head (car seq))
+          (tail (cdr seq)))
+      (if (funcall fun head)
+          (cons head (+filter fun tail))
+        (+filter fun tail)))))
+
+;; (+zip '(1 2 3 4) '(a b c d) '("A" "B" "C" "D")) ;; ==> ((1 a "A") (2 b "B") (3 c "C") (4 d "D"))
+(defun +zip (&rest seqs)
+  (if (null (car seqs)) nil
+    (cons (mapcar #'car seqs)
+          (apply #'+zip (mapcar #'cdr seqs)))))
+
+;;; === Strings ===
+
+;; (+str-join ", " '("foo" "10" "bar")) ;; ==> "foo, 10, bar"
+(defun +str-join (sep seq)
+  (+foldl (lambda (l r) (concat l sep r))
+          (car seq) (cdr seq)))
+
+;; (+str-split "foo, 10, bar" ", ") ;; ==> ("foo" "10" "bar")
+(defun +str-split (str sep)
+  (let ((s (string-search sep str)))
+    (if s (cons (substring str 0 s)
+                (+str-split (substring str (+ s (length sep))) sep))
+      (list str))))
+
+(defun +str-replace (old new s)
+  "Replaces OLD with NEW in S."
+  (replace-regexp-in-string (regexp-quote old) new s t t))
+
+(defun +str-replace-all (replacements s)
+  "REPLACEMENTS is a list of cons-cells. Each `car` is replaced with `cdr` in S."
+  (replace-regexp-in-string (regexp-opt (mapcar 'car replacements))
+                            (lambda (it) (cdr (assoc-string it replacements)))
+                            s t t))
+
+;;; === Files, IO ===
+
+(defun +file-mime-type (file)
+  "Get MIME type for FILE based on magic codes provided by the 'file' command.
+Return a symbol of the MIME type, ex: `text/x-lisp', `text/plain',
+`application/x-object', `application/octet-stream', etc."
+  (let ((mime-type (shell-command-to-string (format "file --brief --mime-type %s" file))))
+    (intern (string-trim-right mime-type))))
+
+(defun +file-name-incremental (filename)
+  "Return an unique file name for FILENAME.
+If \"file.ext\" exists, returns \"file-0.ext\"."
+  (let* ((ext (file-name-extension filename))
+         (dir (file-name-directory filename))
+         (file (file-name-base filename))
+         (filename-regex (concat "^" file "\\(?:-\\(?1:[[:digit:]]+\\)\\)?" (if ext (concat "\\." ext) "")))
+         (last-file (car (last (directory-files dir nil filename-regex))))
+         (last-file-num (when (and last-file (string-match filename-regex last-file) (match-string 1 last-file))))
+         (num (1+ (string-to-number (or last-file-num "-1"))))
+         (filename (file-name-concat dir (format "%s%s%s" file (if last-file (format "-%d" num) "") (if ext (concat "." ext) "")))))
+    filename))
+
+(defun +file-read-to-string (filename)
+  "Return a string with the contents of FILENAME."
+  (when (and (file-exists-p filename) (not (file-directory-p filename)))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (buffer-string))))
+
+;;; === Systemd ===
+
+(defun +systemd-running-p (service)
+  "Check if the systemd SERVICE is running."
+  (zerop (call-process "systemctl" nil nil nil "--user" "is-active" "--quiet" service ".service")))
+
+(defun +systemd-command (service command &optional pre-fn post-fn)
+  "Call systemd with COMMAND and SERVICE."
+  (interactive)
+  (when pre-fn (funcall pre-fn))
+  (let ((success (zerop (call-process "systemctl" nil nil nil "--user" command service ".service"))))
+    (unless success
+      (message "[systemd]: Failed on calling '%s' on service %s.service." command service))
+    (when post-fn (funcall post-fn success))
+    success))
+
+(defun +systemd-start (service &optional pre-fn post-fn)
+  "Start systemd SERVICE."
+  (interactive)
+  (+systemd-command service "start" pre-fn post-fn))
+
+(defun +systemd-stop (service &optional pre-fn post-fn)
+  "Stops the systemd SERVICE."
+  (interactive)
+  (+systemd-command service "stop" pre-fn post-fn))
+\end{verbatim}
+
+\subsubsection{Fixes}
+\label{sec:org7f7ad39}
+
+\begin{verbatim}
+;; Fixes to apply early
+
+(when (daemonp)
+  ;; When starting Emacs in daemon mode,
+  ;; I need to have a valid passphrase in the gpg-agent.
+  (let ((try-again 3)
+        unlocked)
+    (while (not (or unlocked (zerop try-again)))
+      (setq unlocked (zerop (shell-command "gpg -q --no-tty --logger-file /dev/null --batch -d ~/.authinfo.gpg > /dev/null" nil nil))
+            try-again (1- try-again))
+      (unless unlocked
+        (message "GPG: failed to unlock, please try again (%d)" try-again)))
+    (unless unlocked ;; Exit Emacs, systemd will restart it
+      (kill-emacs 1))))
+\end{verbatim}
+
+\subsubsection{Check for external tools}
+\label{sec:orgbda306f}
+Some added packages require external tools, I like to check for these tools and
+store the result in global constants.
+
+\begin{verbatim}
+(defconst EAF-DIR (expand-file-name "eaf/eaf-repo" doom-data-dir))
+(defconst IS-LUCID (string-search "LUCID" system-configuration-features))
+;;(defconst FRICAS-DIR "/usr/lib/fricas/emacs")
+
+(defconst AG-P (executable-find "ag"))
+(defconst EAF-P (and (not IS-LUCID) (file-directory-p EAF-DIR)))
+(defconst MPD-P (+all (mapcar #'executable-find '("mpc" "mpd"))))
+(defconst MPV-P (executable-find "mpv"))
+(defconst REPO-P (executable-find "repo"))
+;;(defconst FRICAS-P (and (executable-find "fricas") (file-directory-p FRICAS-DIR)))
+(defconst MAXIMA-P (executable-find "maxima"))
+(defconst TUNTOX-P (executable-find "tuntox"))
+(defconst ROSBAG-P (executable-find "rosbag"))
+(defconst ZOTERO-P (executable-find "zotero"))
+(defconst CHEZMOI-P (executable-find "chezmoi"))
+(defconst STUNNEL-P (executable-find "stunnel"))
+(defconst ECRYPTFS-P (+all (mapcar #'executable-find '("ecryptfs-add-passphrase" "/sbin/mount.ecryptfs_private"))))
+(defconst BITWARDEN-P (executable-find "bw"))
+(defconst YOUTUBE-DL-P (+some (mapcar #'executable-find '("yt-dlp" "youtube-dl"))))
+(defconst NETEXTENDER-P (and (executable-find "netExtender") (+all (mapcar #'file-exists-p '("~/.local/bin/netextender" "~/.ssh/sslvpn.gpg")))))
+(defconst CLANG-FORMAT-P (executable-find "clang-format"))
+(defconst LANGUAGETOOL-P (executable-find "languagetool"))
+\end{verbatim}
+
+\section{General Emacs Setting}
+\label{sec:org683ff98}
+\subsection{System/User/Default information}
+\label{sec:org0912792}
+\begin{itemize}
+\item sử dụng \texttt{setq} để set giá trị. (setq [SYM VAL]) với SYM là symbol \texttt{literal}, còn VAl là \texttt{evaluated}.
+\item Sử dụng \texttt{setq-default} để set giá trị mặc định.
+\item \texttt{defvar} tạo biến. (defvar SYMBOL \&optional INITVALUE DOCSTRING)
+\item \texttt{defadvice} tại hàm (function).
+\end{itemize}
+\begin{verbatim}
+;; global mode
+(global-subword-mode 1)
+(add-to-list 'load-path "~/.doom.d/lisp")
+
+(setq user-full-name "Dang Quang Vu"
+      user-mail-address "vugomars@gmail.com"
+      user-blog-url "https://www.vugomars.com"
+
+      ;; Split horizontally to right, vertically below the current window.
+      evil-vsplit-window-right t
+      evil-split-window-below t
+
+
+      ispell-program-name "/opt/homebrew/bin/aspell"
+      racer-rust-src-path "~/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library"
+      racer-rust-src-path "~/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library"
+      parinfer-rust-library "~/.emacs.d/.local/etc/parinfer-rust"
+
+      ;; Enable relative line number
+      display-line-numbers-type 'relative
+
+      source-directory (expand-file-name "~/.emacs.d/")
+
+
+      )
+
+;; Enable line numbers for some modes
+(column-number-mode)
+(dolist (mode '(text-mode-hook
+                prog-mode-hook
+                conf-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 1))))
+
+;; Override some modes which derive from the above
+(dolist (mode '(org-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+(setq-default delete-by-moving-to-trash t ;; Delete files by moving them to trash.
+              trash-directory nil
+
+              ;; Take new window space from all other windows
+              window-combination-resize t
+              ;; stretch cursor to the glyph width
+              x-stretch-cursor t
+
+
+
+              )
+
+
+\end{verbatim}
+
+\subsection{Common Variables}
+\label{sec:org96c2ac4}
+\begin{verbatim}
+(defvar +my/lang-main          "en")
+(defvar +my/lang-secondary     "cn")
+(defvar +my/lang-mother-tongue "vn")
+
+(defvar +my/biblio-libraries-list (list (expand-file-name "~/Zotero/library.bib")))
+(defvar +my/biblio-storage-list   (list (expand-file-name "~/Zotero/storage/")))
+(defvar +my/biblio-notes-path     (expand-file-name "~/Dropbox/PhD/bibliography/notes/"))
+(defvar +my/biblio-styles-path    (expand-file-name "~/Zotero/styles/"))
+
+;; Set it early, to avoid creating "~/org" at startup
+(setq org-directory "~/Dropbox/Org")
+\end{verbatim}
+
+\subsection{Common Function}
+\label{sec:org39b7a67}
+\subsubsection{Show list of buffer when splitting}
+\label{sec:orgbfddb4a}
+\begin{verbatim}
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (consult-buffer))
+\end{verbatim}
+
+\subsubsection{mine}
+\label{sec:orgf7491bf}
+\begin{verbatim}
+;;;###autoload
+(defun dqv/edit-zsh-configuration ()
+  (interactive)
+  (find-file "~/.zshrc"))
+
+;;;###autoload
+(defun dqv/use-eslint-from-node-modules ()
+    "Set local eslint if available."
+    (let* ((root (locate-dominating-file
+                  (or (buffer-file-name) default-directory)
+                  "node_modules"))
+           (eslint (and root
+                        (expand-file-name "node_modules/eslint/bin/eslint.js"
+                                          root))))
+      (when (and eslint (file-executable-p eslint))
+        (setq-local flycheck-javascript-eslint-executable eslint))))
+
+;;;###autoload
+(defun dqv/goto-match-paren (arg)
+  "Go to the matching if on (){}[], similar to vi style of % ."
+  (interactive "p")
+  (cond ((looking-at "[\[\(\{]") (evil-jump-item))
+        ((looking-back "[\]\)\}]" 1) (evil-jump-item))
+        ((looking-at "[\]\)\}]") (forward-char) (evil-jump-item))
+        ((looking-back "[\[\(\{]" 1) (backward-char) (evil-jump-item))
+        (t nil)))
+
+;;;###autoload
+(defun dqv/string-inflection-cycle-auto ()
+  "switching by major-mode"
+  (interactive)
+  (cond
+   ;; for emacs-lisp-mode
+   ((eq major-mode 'emacs-lisp-mode)
+    (string-inflection-all-cycle))
+   ;; for python
+   ((eq major-mode 'python-mode)
+    (string-inflection-python-style-cycle))
+   ;; for java
+   ((eq major-mode 'java-mode)
+    (string-inflection-java-style-cycle))
+   (t
+    ;; default
+    (string-inflection-all-cycle))))
+
+;; Current time and date
+(defvar current-date-time-format "%Y-%m-%d %H:%M:%S"
+  "Format of date to insert with `insert-current-date-time' func
+See help of `format-time-string' for possible replacements")
+
+(defvar current-time-format "%H:%M:%S"
+  "Format of date to insert with `insert-current-time' func.
+Note the weekly scope of the command's precision.")
+
+;;;###autoload
+(defun insert-current-date-time ()
+  "insert the current date and time into current buffer.
+Uses `current-date-time-format' for the formatting the date/time."
+  (interactive)
+  (insert (format-time-string current-date-time-format (current-time)))
+  )
+
+;;;###autoload
+(defun insert-current-time ()
+  "insert the current time (1-week scope) into the current buffer."
+  (interactive)
+  (insert (format-time-string current-time-format (current-time)))
+  )
+
+;;;###autoload
+(defun my/capitalize-first-char (&optional string)
+  "Capitalize only the first character of the input STRING."
+  (when (and string (> (length string) 0))
+    (let ((first-char (substring string nil 1))
+          (rest-str   (substring string 1)))
+      (concat (capitalize first-char) rest-str))))
+
+;;;###autoload
+(defun my/lowcase-first-char (&optional string)
+  "Capitalize only the first character of the input STRING."
+  (when (and string (> (length string) 0))
+    (let ((first-char (substring string nil 1))
+          (rest-str   (substring string 1)))
+      (concat first-char rest-str))))
+
+;;;###autoload
+(defun dqv/async-shell-command-silently (command)
+  "async shell command silently."
+  (interactive)
+  (let
+      ((display-buffer-alist
+        (list
+         (cons
+          "\\*Async Shell Command\\*.*"
+          (cons #'display-buffer-no-window nil)))))
+    (async-shell-command
+     command)))
+\end{verbatim}
+
+\subsubsection{Scroll page}
+\label{sec:orgb524d54}
+\begin{verbatim}
+(defun scroll-half-page-down ()
+  "scroll down half the page"
+  (interactive)
+  (scroll-down (/ (window-body-height) 2)))
+
+(defun scroll-half-page-up ()
+  "scroll up half the page"
+  (interactive)
+  (scroll-up (/ (window-body-height) 2)))
+\end{verbatim}
+
+\subsection{Undo}
+\label{sec:org9f6da8e}
+\subsubsection{Undo-fu}
+\label{sec:org88da1f7}
+Tweak \texttt{undo-fu} and other stuff from Doom's \texttt{:emacs undo}.
+
+\begin{verbatim}
+;; Increase undo history limits even more
+(after! undo-fu
+  (setq undo-limit        10000000     ;; 1MB   (default is 160kB, Doom's default is 400kB)
+        undo-strong-limit 100000000    ;; 100MB (default is 240kB, Doom's default is 3MB)
+        undo-outer-limit  1000000000)) ;; 1GB   (default is 24MB,  Doom's default is 48MB)
+
+(after! evil
+  (setq evil-want-fine-undo t)) ;; By default while in insert all changes are one big blob
+\end{verbatim}
+
+\subsubsection{Visual undo (\texttt{vundo})}
+\label{sec:org1747ce7}
+\begin{itemize}
+\item Visualize Undo tree
+\end{itemize}
+\begin{verbatim}
+(package! vundo
+  :recipe (:host github
+           :repo "casouri/vundo")
+  :pin "16a09774ddfbd120d625cdd35fcf480e76e278bb")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! vundo
+  :defer t
+  :init
+  (defconst +vundo-unicode-symbols
+   '((selected-node   . ?●)
+     (node            . ?○)
+     (vertical-stem   . ?│)
+     (branch          . ?├)
+     (last-branch     . ?╰)
+     (horizontal-stem . ?─)))
+
+  (map! :leader
+        (:prefix ("o")
+         :desc "vundo" "v" #'vundo))
+
+  :config
+  (setq vundo-glyph-alist +vundo-unicode-symbols
+        vundo-compact-display t
+        vundo-window-max-height 6))
+\end{verbatim}
+
+\subsection{Messages buffer}
+\label{sec:org581af0a}
+Stick to buffer tail, useful with \texttt{*Messages*} buffer. Derived from \href{https://stackoverflow.com/a/6341139/3058915}{this answer}.
+
+\begin{verbatim}
+(defvar +messages--auto-tail-enabled nil)
+
+(defun +messages--auto-tail-a (&rest arg)
+  "Make *Messages* buffer auto-scroll to the end after each message."
+  (let* ((buf-name (buffer-name (messages-buffer)))
+         ;; Create *Messages* buffer if it does not exist
+         (buf (get-buffer-create buf-name)))
+    ;; Activate this advice only if the point is _not_ in the *Messages* buffer
+    ;; to begin with. This condition is required; otherwise you will not be
+    ;; able to use `isearch' and other stuff within the *Messages* buffer as
+    ;; the point will keep moving to the end of buffer :P
+    (when (not (string= buf-name (buffer-name)))
+      ;; Go to the end of buffer in all *Messages* buffer windows that are
+      ;; *live* (`get-buffer-window-list' returns a list of only live windows).
+      (dolist (win (get-buffer-window-list buf-name nil :all-frames))
+        (with-selected-window win
+          (goto-char (point-max))))
+      ;; Go to the end of the *Messages* buffer even if it is not in one of
+      ;; the live windows.
+      (with-current-buffer buf
+        (goto-char (point-max))))))
+
+(defun +messages-auto-tail-toggle ()
+  "Auto tail the '*Messages*' buffer."
+  (interactive)
+  (if +messages--auto-tail-enabled
+      (progn
+        (advice-remove 'message '+messages--auto-tail-a)
+        (setq +messages--auto-tail-enabled nil)
+        (message "+messages-auto-tail: Disabled."))
+    (advice-add 'message :after '+messages--auto-tail-a)
+    (setq +messages--auto-tail-enabled t)
+    (message "+messages-auto-tail: Enabled.")))
+\end{verbatim}
+
+\section{User Interface}
+\label{sec:orge1aec25}
+\subsection{Font}
+\label{sec:org9edb52e}
+\begin{verbatim}
+(setq doom-font (font-spec :family "Iosevka Fixed Curly Slab" :size 15)
+      doom-big-font (font-spec :family "Iosevka Fixed Curly Slab" :size 20 :weight 'light)
+      doom-variable-pitch-font (font-spec :family "Iosevka Fixed Curly Slab")
+      doom-unicode-font (font-spec :family "JuliaMono")
+      doom-serif-font (font-spec :family "Iosevka Fixed Curly Slab" :weight 'light))
+\end{verbatim}
+
+\subsection{Theme}
+\label{sec:org780dd66}
+\subsubsection{Doom}
+\label{sec:org881cd66}
+\begin{verbatim}
+;; (setq doom-theme 'doom-one-light)
+;; (remove-hook 'window-setup-hook #'doom-init-theme-h)
+;; (add-hook 'after-init-hook #'doom-init-theme-h 'append)
+\end{verbatim}
+
+\subsubsection{Modus themes}
+\label{sec:org1d184dc}
+\begin{verbatim}
+(package! modus-themes)
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! modus-themes
+  :init
+  (setq modus-themes-hl-line '(accented intense)
+        modus-themes-subtle-line-numbers t
+        modus-themes-region '(bg-only no-extend) ;; accented
+        modus-themes-variable-pitch-ui nil
+        modus-themes-fringes 'subtle
+        modus-themes-diffs nil
+        modus-themes-italic-constructs t
+        modus-themes-bold-constructs t
+        modus-themes-intense-mouseovers t
+        modus-themes-paren-match '(bold intense)
+        modus-themes-syntax '(green-strings)
+        modus-themes-links '(neutral-underline background)
+        modus-themes-mode-line '(borderless padded)
+        modus-themes-tabs-accented nil ;; default
+        modus-themes-completions
+        '((matches . (extrabold intense accented))
+          (selection . (semibold accented intense))
+          (popup . (accented)))
+        modus-themes-headings '((1 . (rainbow 1.4))
+                                (2 . (rainbow 1.3))
+                                (3 . (rainbow 1.2))
+                                (4 . (rainbow bold 1.1))
+                                (t . (rainbow bold)))
+        modus-themes-org-blocks 'gray-background
+        modus-themes-org-agenda
+        '((header-block . (semibold 1.4))
+          (header-date . (workaholic bold-today 1.2))
+          (event . (accented italic varied))
+          (scheduled . rainbow)
+          (habit . traffic-light))
+        modus-themes-markup '(intense background)
+        modus-themes-mail-citations 'intense
+        modus-themes-lang-checkers '(background))
+
+  (defun +modus-themes-tweak-packages ()
+    (modus-themes-with-colors
+      (set-face-attribute 'cursor nil :background (modus-themes-color 'blue))
+      (set-face-attribute 'font-lock-type-face nil :foreground (modus-themes-color 'magenta-alt))
+      (custom-set-faces
+       ;; Tweak `evil-mc-mode'
+       `(evil-mc-cursor-default-face ((,class :background ,magenta-intense-bg)))
+       ;; Tweak `git-gutter-mode'
+       `(git-gutter-fr:added ((,class :foreground ,green-fringe-bg)))
+       `(git-gutter-fr:deleted ((,class :foreground ,red-fringe-bg)))
+       `(git-gutter-fr:modified ((,class :foreground ,yellow-fringe-bg)))
+       ;; Tweak `doom-modeline'
+       `(doom-modeline-evil-normal-state ((,class :foreground ,green-alt-other)))
+       `(doom-modeline-evil-insert-state ((,class :foreground ,red-alt-other)))
+       `(doom-modeline-evil-visual-state ((,class :foreground ,magenta-alt)))
+       `(doom-modeline-evil-operator-state ((,class :foreground ,blue-alt)))
+       `(doom-modeline-evil-motion-state ((,class :foreground ,blue-alt-other)))
+       `(doom-modeline-evil-replace-state ((,class :foreground ,yellow-alt)))
+       ;; Tweak `diff-hl-mode'
+       `(diff-hl-insert ((,class :foreground ,green-fringe-bg)))
+       `(diff-hl-delete ((,class :foreground ,red-fringe-bg)))
+       `(diff-hl-change ((,class :foreground ,yellow-fringe-bg)))
+       ;; Tweak `solaire-mode'
+       `(solaire-default-face ((,class :inherit default :background ,bg-alt :foreground ,fg-dim)))
+       `(solaire-line-number-face ((,class :inherit solaire-default-face :foreground ,fg-unfocused)))
+       `(solaire-hl-line-face ((,class :background ,bg-active)))
+       `(solaire-org-hide-face ((,class :background ,bg-alt :foreground ,bg-alt)))
+       ;; Tweak `display-fill-column-indicator-mode'
+       `(fill-column-indicator ((,class :height 0.3 :background ,bg-inactive :foreground ,bg-inactive)))
+       ;; Tweak `mmm-mode'
+       `(mmm-cleanup-submode-face ((,class :background ,yellow-refine-bg)))
+       `(mmm-code-submode-face ((,class :background ,bg-active)))
+       `(mmm-comment-submode-face ((,class :background ,blue-refine-bg)))
+       `(mmm-declaration-submode-face ((,class :background ,cyan-refine-bg)))
+       `(mmm-default-submode-face ((,class :background ,bg-alt)))
+       `(mmm-init-submode-face ((,class :background ,magenta-refine-bg)))
+       `(mmm-output-submode-face ((,class :background ,red-refine-bg)))
+       `(mmm-special-submode-face ((,class :background ,green-refine-bg))))))
+
+  (add-hook 'modus-themes-after-load-theme-hook #'+modus-themes-tweak-packages)
+
+  :config
+  (modus-themes-load-operandi)
+  (map! :leader
+        :prefix "t" ;; toggle
+        :desc "Toggle Modus theme" "m" #'modus-themes-toggle))
+\end{verbatim}
+
+\subsection{Mode line}
+\label{sec:orgd983d9b}
+\paragraph{Clock}
+\label{sec:org5739211}
+\begin{itemize}
+\item Display time and set the format to 24h.
+\end{itemize}
+
+\begin{verbatim}
+(after! doom-modeline
+  (setq display-time-string-forms
+        '((propertize (concat " 🕘 " 24-hours ":" minutes))))
+  (display-time-mode 1) ; Enable time in the mode-line
+
+  ;; Add padding to the right
+  (doom-modeline-def-modeline 'main
+   '(bar workspace-name window-number modals matches follow buffer-info remote-host buffer-position word-count parrot selection-info)
+   '(objed-state misc-info persp-name battery grip irc mu4e gnus github debug repl lsp minor-modes input-method indent-info buffer-encoding major-mode process vcs checker "   ")))
+\end{verbatim}
+
+\paragraph{Battery}
+\label{sec:org4d888b5}
+\begin{itemize}
+\item Show battery level unless battery is not present or battery information is unknown.
+\end{itemize}
+
+\begin{verbatim}
+(after! doom-modeline
+  (let ((battery-str (battery)))
+    (unless (or (equal "Battery status not available" battery-str)
+                (string-match-p (regexp-quote "unknown") battery-str)
+                (string-match-p (regexp-quote "N/A") battery-str))
+      (display-battery-mode 1))))
+\end{verbatim}
+
+\paragraph{Mode line customization}
+\label{sec:orga305d14}
+
+\begin{verbatim}
+(after! doom-modeline
+  (setq doom-modeline-bar-width 4
+        doom-modeline-mu4e t
+        doom-modeline-major-mode-icon t
+        doom-modeline-major-mode-color-icon t
+        doom-modeline-buffer-file-name-style 'truncate-upto-project))
+\end{verbatim}
+
+\subsection{Set transparency \& Full Screen}
+\label{sec:orga23a5d6}
+
+\begin{verbatim}
+;; set transparent
+(set-frame-parameter (selected-frame) 'alpha '(100 100))
+(add-to-list 'default-frame-alist '(alpha 100 100))
+
+;; full screen
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+(add-hook 'org-mode-hook 'turn-on-auto-fill)
+\end{verbatim}
+
+\subsection{Dashboard}
+\label{sec:org31035bc}
+\paragraph{Custom splash image}
+\label{sec:org9127e15}
+Change the logo to an image, a set of beautiful images can be found in \texttt{assets}.
+
+\begin{verbatim}
+(setq fancy-splash-image (expand-file-name "assets/doom-emacs-gray.svg" doom-user-dir))
+\end{verbatim}
+
+\paragraph{Dashboard}
+\label{sec:org1dc4fc0}
+
+\begin{verbatim}
+(remove-hook '+doom-dashboard-functions #'doom-dashboard-widget-shortmenu)
+(remove-hook '+doom-dashboard-functions #'doom-dashboard-widget-footer)
+(add-hook! '+doom-dashboard-mode-hook (hl-line-mode -1))
+(setq-hook! '+doom-dashboard-mode-hook evil-normal-state-cursor (list nil))
+\end{verbatim}
+
+\subsection{SVG tag and \texttt{svg-lib}}
+\label{sec:orgc49fcd6}
+
+\begin{verbatim}
+(package! svg-tag-mode :pin "efd22edf650fb25e665269ba9fed7ccad0771a2f")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! svg-tag-mode
+  :commands svg-tag-mode
+  :config
+  (setq svg-tag-tags
+        '(("^\\*.* .* \\(:[A-Za-z0-9]+\\)" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0))))
+          ("\\(:[A-Za-z0-9]+:\\)$" .
+           ((lambda (tag)
+              (svg-tag-make
+               tag
+               :beg 1
+               :end -1
+               :font-family "Roboto Mono"
+               :font-size 10
+               :height 0.8
+               :padding 0
+               :margin 0)))))))
+\end{verbatim}
+
+\begin{verbatim}
+(after! svg-lib
+  ;; Set `svg-lib' cache directory
+  (setq svg-lib-icons-dir (expand-file-name "svg-lib" doom-data-dir)))
+\end{verbatim}
+
+\subsection{Focus}
+\label{sec:org1a58a34}
+Dim the font color of text in surrounding paragraphs, focus only on the current line.
+
+\begin{verbatim}
+(package! focus :pin "9dd85fc474bbc1ebf22c287752c960394fcd465a")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! focus
+  :commands focus-mode)
+\end{verbatim}
+
+\subsection{Scrolling}
+\label{sec:org036b12d}
+
+\begin{verbatim}
+(package! good-scroll
+  :disable EMACS29+
+  :pin "a7ffd5c0e5935cebd545a0570f64949077f71ee3")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! good-scroll
+  :unless EMACS29+
+  :config (good-scroll-mode 1))
+
+(when EMACS29+
+  (pixel-scroll-precision-mode 1))
+
+(setq hscroll-step 1
+      hscroll-margin 0
+      scroll-step 1
+      scroll-margin 0
+      scroll-conservatively 101
+      scroll-up-aggressively 0.01
+      scroll-down-aggressively 0.01
+      scroll-preserve-screen-position 'always
+      auto-window-vscroll nil
+      fast-but-imprecise-scrolling nil)
+\end{verbatim}
+
+\subsection{All the icons}
+\label{sec:org7061155}
+Set some custom icons for some file extensions, basically for \texttt{.m} files.
+
+\begin{verbatim}
+(after! all-the-icons
+  (setcdr (assoc "m" all-the-icons-extension-icon-alist)
+          (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
+\end{verbatim}
+
+\subsection{Tabs}
+\label{sec:org49db051}
+
+\begin{verbatim}
+(after! centaur-tabs
+  ;; For some reason, setting `centaur-tabs-set-bar' this to `right'
+  ;; instead of Doom's default `left', fixes this issue with Emacs daemon:
+  ;; https://github.com/doomemacs/doomemacs/issues/6647#issuecomment-1229365473
+  (setq centaur-tabs-set-bar 'right
+        centaur-tabs-gray-out-icons 'buffer
+        centaur-tabs-set-modified-marker t
+        centaur-tabs-close-button "⨂"
+        centaur-tabs-modified-marker "⨀"))
+\end{verbatim}
+
+\subsection{Zen (writeroom) mode}
+\label{sec:orgd6b8951}
+
+\begin{verbatim}
+(after! writeroom-mode
+  ;; Show mode line
+  (setq writeroom-mode-line t)
+
+  ;; Disable line numbers
+  (add-hook! 'writeroom-mode-enable-hook
+    (when (bound-and-true-p display-line-numbers-mode)
+      (setq-local +line-num--was-activate-p display-line-numbers-type)
+      (display-line-numbers-mode -1)))
+
+  (add-hook! 'writeroom-mode-disable-hook
+    (when (bound-and-true-p +line-num--was-activate-p)
+      (display-line-numbers-mode +line-num--was-activate-p)))
+
+  (after! org
+    ;; Increase latex previews scale in Zen mode
+    (add-hook! 'writeroom-mode-enable-hook (+org-format-latex-set-scale 2.0))
+    (add-hook! 'writeroom-mode-disable-hook (+org-format-latex-set-scale 1.4)))
+
+  (after! blamer
+    ;; Disable blamer in zen (writeroom) mode
+    (add-hook! 'writeroom-mode-enable-hook
+      (when (bound-and-true-p blamer-mode)
+        (setq +blamer-mode--was-active-p t)
+        (blamer-mode -1)))
+    (add-hook! 'writeroom-mode-disable-hook
+      (when (bound-and-true-p +blamer-mode--was-active-p)
+        (blamer-mode 1)))))
+\end{verbatim}
+
+\subsection{Highlight indent guides}
+\label{sec:org92adc08}
+
+\begin{verbatim}
+(after! highlight-indent-guides
+  (setq highlight-indent-guides-character ?│
+        highlight-indent-guides-responsive 'top))
+\end{verbatim}
+
+\section{Keybindings}
+\label{sec:orgdd747ab}
+Keybindings reference:
+\href{https://github.com/hlissner/doom-emacs/blob/develop/modules/config/default/\%2Bevil-bindings.el}{evil-bindings.el}
+\href{https://github.com/hlissner/doom-emacs/blob/617fc7f1cc6c91d80a30aca0445ae21f1bd5ddc9/modules/editor/evil/config.el}{editor/evil/config.el}
+
+\subsection{Disable keybindings}
+\label{sec:org7d1a70b}
+\begin{verbatim}
+(global-set-key (kbd "<f1>") nil)        ; ns-print-buffer
+(global-set-key (kbd "<f2>") nil)        ; ns-print-buffer
+(define-key evil-normal-state-map (kbd ",") nil)
+(define-key evil-visual-state-map (kbd ",") nil)
+\end{verbatim}
+
+\subsection{F1\textasciitilde{}12(kbd)}
+\label{sec:org49a7f80}
+
+\begin{verbatim}
+(global-set-key (kbd "<f2>") 'rgrep)
+(global-set-key (kbd "<f5>") 'deadgrep)
+(global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
+;; (global-set-key (kbd "<f8>") 'quickrun)
+(global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
+(global-set-key (kbd "M-z") 'dqv-launcher/body)
+;; (global-set-key (kbd "C-t") '+vterm/toggle)
+;; (global-set-key (kbd "C-S-t") '+vterm/here)
+;; (global-set-key (kbd "C-d") 'kill-current-buffer)
+;; (avy-setup-default)
+;; (global-set-key (kbd "C-c C-j") 'avy-resume)
+\end{verbatim}
+
+\subsection{Common}
+\label{sec:orgc89a90d}
+\begin{verbatim}
+(setq doom-localleader-key ",")
+(map!
+;; avy
+:nv    "f"     #'avy-goto-char-2
+:nv    "F"     #'avy-goto-char
+:nv    "w"     #'avy-goto-word-1
+:nv    "W"     #'avy-goto-char-timer
+
+;; view scroll mode
+:nv    "C-n"   #'scroll-half-page-up
+:nv    "C-p"   #'scroll-half-page-down
+
+:nv    "-"     #'evil-window-decrease-width
+:nv    "+"     #'evil-window-increase-width
+:nv    "C--"   #'evil-window-decrease-height
+:nv    "C-+"   #'evil-window-increase-height
+
+:nv    ")"     #'sp-forward-sexp
+:nv    "("     #'sp-backward-up-sexp
+:nv    "s-)"   #'sp-down-sexp
+:nv    "s-("   #'sp-backward-sexp
+:nv    "gd"    #'xref-find-definitions
+:nv    "gD"    #'xref-find-references
+:nv    "gb"    #'xref-pop-marker-stack
+
+:niv   "C-e"   #'evil-end-of-line
+:niv   "C-="   #'er/expand-region
+
+"C-;"          #'tiny-expand
+"C-a"          #'crux-move-beginning-of-line
+"C-s"          #'+default/search-buffer
+
+"C-c C-j"      #'avy-resume
+"C-c c x"      #'org-capture
+;; "C-c c j"      #'avy-resume
+
+"C-c f r"      #'dqv/indent-org-block-automatically
+
+"C-c h h"      #'dqv/org-html-export-to-html
+
+"C-c i d"      #'insert-current-date-time
+"C-c i t"      #'insert-current-time
+;; "C-c i d"      #'crux-insert-date
+"C-c i e"      #'emojify-inert-emoji
+"C-c i f"      #'js-doc-insert-function-doc
+"C-c i F"      #'js-doc-insert-file-doc
+
+"C-c o o"      #'crux-open-with
+"C-c o u"      #'crux-view-url
+"C-c o t"      #'crux-visit-term-buffer
+;; org-roam
+"C-c o r o"    #'org-roam-ui-open
+
+"C-c r r"      #'vr/replace
+"C-c r q"      #'vr/query-replace
+
+"C-c y y"      #'youdao-dictionary-search-at-point+
+
+;; Command/Window
+"s-k"          #'move-text-up
+"s-j"          #'move-text-down
+"s-i"          #'dqv/string-inflection-cycle-auto
+;; "s--"          #'sp-splice-sexp
+;; "s-_"          #'sp-rewrap-sexp
+
+"M-i"          #'parrot-rotate-next-word-at-point
+"s-;"          #'dqv/goto-match-paren
+)
+\end{verbatim}
+
+\subsection{SPC leader}
+\label{sec:org137674c}
+\begin{verbatim}
+(map! :leader
+      :n "SPC"  #'execute-extended-command
+      :n "."  #'dired-jump
+      :n ","  #'magit-status
+      :n "-"  #'goto-line
+      ;; (:prefix ("d" . "Debugger")
+      ;;  :n    "r"   #'dap-debug
+      ;;  :n    "l"   #'dap-debug-last
+      ;;  :n    "R"   #'dap-debug-recent
+      ;;  :n    "x"   #'dap-disconnect
+      ;;  :n    "a"   #'dap-breakpoint-add
+      ;;  :n    "t"   #'dap-breakpoint-toggle
+      ;;  :n    "d"   #'dap-delete-session
+      ;;  :n    "D"   #'dap-delete-all-sessions
+
+      ;;  )
+
+      (:prefix ("e" . "Exercise Coding Challenger")
+       :n    "l"     #'leetcode
+       :n    "d"     #'leetcode-daily
+       :n    "o"     #'leetcode-show-problem-in-browser
+       :n    "s"     #'leetcode-show-problem
+       )
+
+
+      (:prefix ("m" . "Treemacs")
+       :n     "t"           #'treemacs
+       :n     "df"           #'treemacs-delete-file
+       :n     "dp"           #'treemacs-remove-project-from-workspace
+       :n     "cd"           #'treemacs-create-dir
+       :n     "cf"           #'treemacs-create-file
+       :n     "a"           #'treemacs-add-project-to-workspace
+       :n     "wc"           #'treemacs-create-workspace
+       :n     "ws"           #'treemacs-switch-workspace
+       :n     "wd"           #'treemacs-remove-workspace
+       :n     "wf"           #'treemacs-rename-workspace
+       )
+
+      :nv "w -" #'evil-window-split
+      :nv "j" #'switch-to-buffer
+      :nv "wo" #'delete-other-windows
+      :nv "fd" #'doom/delete-this-file
+      :nv "ls" #'+lsp/switch-client
+      :nv "bR" #'rename-buffer
+      :nv "bx" #'doom/switch-to-scratch-buffer
+      )
+
+(map! :map dap-mode-map
+      :leader
+      :prefix ("d" . "dap")
+      ;; basics
+      :desc "dap next"          "n" #'dap-next
+      :desc "dap step in"       "i" #'dap-step-in
+      :desc "dap step out"      "o" #'dap-step-out
+      :desc "dap continue"      "c" #'dap-continue
+      :desc "dap hydra"         "h" #'dap-hydra
+      :desc "dap debug restart" "r" #'dap-debug-restart
+      :desc "dap debug"         "s" #'dap-debug
+
+      ;; debug
+      :prefix ("dd" . "Debug")
+      :desc "dap debug recent"  "r" #'dap-debug-recent
+      :desc "dap debug last"    "l" #'dap-debug-last
+
+      ;; eval
+      :prefix ("de" . "Eval")
+      :desc "eval"                "e" #'dap-eval
+      :desc "eval region"         "r" #'dap-eval-region
+      :desc "eval thing at point" "s" #'dap-eval-thing-at-point
+      :desc "add expression"      "a" #'dap-ui-expressions-add
+      :desc "remove expression"   "d" #'dap-ui-expressions-remove
+
+      :prefix ("db" . "Breakpoint")
+      :desc "dap breakpoint toggle"      "b" #'dap-breakpoint-toggle
+      :desc "dap breakpoint condition"   "c" #'dap-breakpoint-condition
+      :desc "dap breakpoint hit count"   "h" #'dap-breakpoint-hit-condition
+      :desc "dap breakpoint log message" "l" #'dap-breakpoint-log-message)
+\end{verbatim}
+
+\subsection{org-mode}
+\label{sec:orgd8c1a1c}
+\begin{verbatim}
+(map! :map org-mode-map
+      ;; t
+      :nv "tt"          #'org-todo
+      :nv "tT"          #'counsel-org-tag
+
+      :nv "tcc"         #'org-toggle-checkbox
+      :nv "tcu"         #'org-update-checkbox-count
+
+      :nv "tpp"         #'org-priority
+      :nv "tpu"         #'org-priority-up
+      :nv "tpd"         #'org-priority-down
+
+
+      ;; C-c
+      "C-c a t" #'org-transclusion-add
+      ;; #'org-transclusion-mode
+      "C-c c i" #'org-clock-in
+      "C-c c o" #'org-clock-out
+      "C-c c h" #'counsel-org-clock-history
+      "C-c c g" #'counsel-org-clock-goto
+      "C-c c c" #'counsel-org-clock-context
+      "C-c c r" #'counsel-org-clock-rebuild-history
+      "C-c c p" #'org-preview-html-mode
+
+      "C-c f r" #'dqv/indent-org-block-automatically
+
+      "C-c e e" #'all-the-icons-insert
+      "C-c e a" #'all-the-icons-insert-faicon
+      "C-c e f" #'all-the-icons-insert-fileicon
+      "C-c e w" #'all-the-icons-insert-wicon
+      "C-c e o" #'all-the-icons-insert-octicon
+      "C-c e m" #'all-the-icons-insert-material
+      "C-c e i" #'all-the-icons-insert-alltheicon
+
+      "C-c g l" #'org-mac-grab-link
+
+      "C-c i u" #'org-mac-chrome-insert-frontmost-url
+      "C-c i c" #'copyright
+      "C-c i D" #'o-docs-insert
+
+      ;; `C-c s' links & search-engine
+      "C-c l l" #'org-super-links-link
+      "C-c l L" #'org-super-links-insert-link
+      "C-c l s" #'org-super-links-store-link
+      "C-c l d" #'org-super-links-quick-insert-drawer-link
+      "C-c l i" #'org-super-links-quick-insert-inline-link
+      "C-c l D" #'org-super-links-delete-link
+      "C-c l b" #'org-mark-ring-goto
+
+      "C-c q s" #'org-ql-search
+      "C-c q v" #'org-ql-view
+      "C-c q b" #'org-ql-sidebar
+      "C-c q r" #'org-ql-view-recent-items
+      "C-c q t" #'org-ql-sparse-tree
+
+      "C-c r f" #'org-refile-copy ;; copy current entry to another heading
+      "C-c r F" #'org-refile ;; like `org-refile-copy' but moving
+
+      "C-c w m" #'org-mind-map-write
+      "C-c w M" #'org-mind-map-write-current-tree
+
+      ;; org-roam, org-ref
+      ;; "C-c n l" #'org-roam-buffer-toggle
+      ;; "C-c n f" #'org-roam-node-find
+      ;; "C-c n g" #'org-roam-graph
+      ;; "C-c n i" #'org-roam-node-insert
+      ;; "C-c n c" #'org-roam-capture
+      ;; "C-c n j" #'org-roam-dailies-capture-today
+      "C-c n r a" #'org-roam-ref-add
+      "C-c n r f" #'org-roam-ref-find
+      "C-c n r d" #'org-roam-ref-remove
+      "C-c n r c" #'org-ref-insert-cite-link
+      "C-c n r l" #'org-ref-insert-label-link
+      "C-c n r i" #'org-ref-insert-link
+      "C-c n b c" #'org-bibtex-check-all
+      "C-c n b a" #'org-bibtex-create
+      )
+\end{verbatim}
+
+\subsection{deadgrep-mode}
+\label{sec:org41fec7d}
+
+\begin{verbatim}
+(map! :map deadgrep-mode-map
+      :nv "TAB" #'deadgrep-toggle-file-results
+      :nv "D"   #'deadgrep-directory
+      :nv "S"   #'deadgrep-search-term
+      :nv "N"   #'deadgrep--move-match
+      :nv "n"   #'deadgrep--move
+      :nv "o"   #'deadgrep-visit-result-other-window
+      :nv "r"   #'deadgrep-restart)
+
+\end{verbatim}
+
+\section{Package Configuration}
+\label{sec:org18d5b46}
+\subsection{Editing}
+\label{sec:org4824af3}
+\subsubsection{File templates}
+\label{sec:orgc73ed8b}
+\begin{itemize}
+\item Chúng ta có thể ghi đè một vài mode chung snippet's vào một thư mục.
+\end{itemize}
+
+\begin{verbatim}
+(set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
+(set-file-template! "\\.org$" :trigger "__" :mode 'org-mode)
+(set-file-template! "/LICEN[CS]E$" :trigger '+file-templates/insert-license)
+\end{verbatim}
+
+\subsubsection{Scratch buffer}
+\label{sec:org8c041ff}
+\begin{itemize}
+\item Tell the scratch buffer to start in \texttt{emacs-lisp-mode}.
+\end{itemize}
+
+\begin{verbatim}
+(setq doom-scratch-initial-major-mode 'emacs-lisp-mode)
+\end{verbatim}
+
+\subsubsection{Very large files}
+\label{sec:org88d5571}
+\begin{itemize}
+\item Hỗ trợ tải file lớn với cách tải từng phần nhỏ, giúp sử dụng file lớn dễ dàng hơn.
+\end{itemize}
+\begin{verbatim}
+(package! vlf :pin "cc02f2533782d6b9b628cec7e2dcf25b2d05a27c")
+\end{verbatim}
+
+\begin{itemize}
+\item Dể sử dụng VLF mà không bị delay khi khởi động, chúng ta chỉ load nó trong im
+lặng under the hood.
+\end{itemize}
+\begin{verbatim}
+(use-package! vlf-setup
+  :defer-incrementally vlf-tune vlf-base vlf-write vlf-search vlf-occur vlf-follow vlf-ediff vlf)
+\end{verbatim}
+
+\subsubsection{Evil}
+\label{sec:org8c73fc8}
+
+\begin{verbatim}
+(after! evil
+  ;; This fixes https://github.com/doomemacs/doomemacs/issues/6478
+  ;; Ref: https://github.com/emacs-evil/evil/issues/1630
+  (evil-select-search-module 'evil-search-module 'isearch)
+
+  (setq evil-kill-on-visual-paste nil)) ; Don't put overwritten text in the kill ring
+\end{verbatim}
+
+\begin{verbatim}
+(package! evil-escape :disable t)
+\end{verbatim}
+
+\subsubsection{Aggressive indent}
+\label{sec:org3b37d86}
+
+\begin{verbatim}
+(package! aggressive-indent :pin "70b3f0add29faff41e480e82930a231d88ee9ca7")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! aggressive-indent
+  :commands (aggressive-indent-mode))
+\end{verbatim}
+
+\subsubsection{YASnippet}
+\label{sec:org2f5f951}
+Nested snippets are good, enable that.
+
+\begin{verbatim}
+(setq yas-triggers-in-field t)
+\end{verbatim}
+
+\subsection{Symbols}
+\label{sec:org29abd6a}
+\subsubsection{Emojify}
+\label{sec:org3589b8b}
+\begin{itemize}
+\item Cài đặt emoji của Twitter.
+\end{itemize}
+
+\begin{verbatim}
+(setq emojify-emoji-set "twemoji-v2")
+\end{verbatim}
+\begin{itemize}
+\item Một vấn đề khi sử dụng emoji là nó sẽ ưu tiên sử dụng các ký hiệu mặc định,
+Điều này thương sảy ra với các overlay symbol trên org mode. Chúng ta sẽ xoá
+nó khỏi mục emoji.
+\end{itemize}
+
+\begin{verbatim}
+(defvar emojify-disabled-emojis
+  '(;; Org
+    "◼" "☑" "☸" "⚙" "⏩" "⏪" "⬆" "⬇" "❓" "⏱" "®" "™" "🅱" "❌" "✳"
+    ;; Terminal powerline
+    "✔"
+    ;; Box drawing
+    "▶" "◀")
+  "Characters that should never be affected by `emojify-mode'.")
+
+(defadvice! emojify-delete-from-data ()
+  "Ensure `emojify-disabled-emojis' don't appear in `emojify-emojis'."
+  :after #'emojify-set-emoji-data
+  (dolist (emoji emojify-disabled-emojis)
+    (remhash emoji emojify-emojis)))
+\end{verbatim}
+
+\begin{itemize}
+\item Chúng ta sẽ chạy một minor mode cho phép bạn nhập các biểu tượng emoji, và
+chuyển sang unicode.
+\end{itemize}
+
+\begin{verbatim}
+(defun emojify--replace-text-with-emoji (orig-fn emoji text buffer start end &optional target)
+  "Modify `emojify--propertize-text-for-emoji' to replace ascii/github emoticons with unicode emojis, on the fly."
+  (if (or (not emoticon-to-emoji) (= 1 (length text)))
+      (funcall orig-fn emoji text buffer start end target)
+    (delete-region start end)
+    (insert (ht-get emoji "unicode"))))
+
+(define-minor-mode emoticon-to-emoji
+  "Write ascii/gh emojis, and have them converted to unicode live."
+  :global nil
+  :init-value nil
+  (if emoticon-to-emoji
+      (progn
+        (setq-local emojify-emoji-styles '(ascii github unicode))
+        (advice-add 'emojify--propertize-text-for-emoji :around #'emojify--replace-text-with-emoji)
+        (unless emojify-mode
+          (emojify-turn-on-emojify-mode)))
+    (setq-local emojify-emoji-styles (default-value 'emojify-emoji-styles))
+    (advice-remove 'emojify--propertize-text-for-emoji #'emojify--replace-text-with-emoji)))
+\end{verbatim}
+
+\begin{itemize}
+\item Kết hợp chức năng này cho email \& mu4e
+\end{itemize}
+
+\begin{verbatim}
+(add-hook! '(mu4e-compose-mode org-msg-edit-mode circe-channel-mode) (emoticon-to-emoji 1))
+\end{verbatim}
+
+\subsubsection{Ligatures}
+\label{sec:orgee72e4c}
+\begin{itemize}
+\item Vũ muốn vô hiệu hoá các extra ligature trên một vài mode (rust, c++, python,
+scheme). Thường chỉ giữ lại sử dụng cho emacs-lisp mode.
+\end{itemize}
+
+\begin{verbatim}
+(defun +appened-to-negation-list (head tail)
+  (if (sequencep head)
+      (delete-dups
+       (if (eq (car tail) 'not)
+           (append head tail)
+         (append tail head)))
+    tail))
+
+(when (modulep! :ui ligatures)
+  (setq +ligatures-extras-in-modes
+        (+appened-to-negation-list
+         +ligatures-extras-in-modes
+         '(not c-mode c++-mode emacs-lisp-mode python-mode scheme-mode racket-mode rust-mode)))
+
+  (setq +ligatures-in-modes
+        (+appened-to-negation-list
+         +ligatures-in-modes
+         '(not emacs-lisp-mode scheme-mode racket-mode))))
+\end{verbatim}
+
+\subsection{Features}
+\label{sec:org2ab9802}
+\subsubsection{Workspaces}
+\label{sec:org03abc79}
+
+\begin{verbatim}
+(map! :leader
+      (:when (modulep! :ui workspaces)
+       :prefix ("TAB" . "workspace")
+       :desc "Display tab bar"           "TAB" #'+workspace/display
+       :desc "Switch workspace"          "."   #'+workspace/switch-to
+       :desc "Switch to last workspace"  "$"   #'+workspace/other ;; Modified
+       :desc "New workspace"             "n"   #'+workspace/new
+       :desc "New named workspace"       "N"   #'+workspace/new-named
+       :desc "Load workspace from file"  "l"   #'+workspace/load
+       :desc "Save workspace to file"    "s"   #'+workspace/save
+       :desc "Delete session"            "x"   #'+workspace/kill-session
+       :desc "Delete this workspace"     "d"   #'+workspace/delete
+       :desc "Rename workspace"          "r"   #'+workspace/rename
+       :desc "Restore last session"      "R"   #'+workspace/restore-last-session
+       :desc "Next workspace"            ">"   #'+workspace/switch-right ;; Modified
+       :desc "Previous workspace"        "<"   #'+workspace/switch-left ;; Modified
+       :desc "Switch to 1st workspace"   "1"   #'+workspace/switch-to-0
+       :desc "Switch to 2nd workspace"   "2"   #'+workspace/switch-to-1
+       :desc "Switch to 3rd workspace"   "3"   #'+workspace/switch-to-2
+       :desc "Switch to 4th workspace"   "4"   #'+workspace/switch-to-3
+       :desc "Switch to 5th workspace"   "5"   #'+workspace/switch-to-4
+       :desc "Switch to 6th workspace"   "6"   #'+workspace/switch-to-5
+       :desc "Switch to 7th workspace"   "7"   #'+workspace/switch-to-6
+       :desc "Switch to 8th workspace"   "8"   #'+workspace/switch-to-7
+       :desc "Switch to 9th workspace"   "9"   #'+workspace/switch-to-8
+       :desc "Switch to final workspace" "0"   #'+workspace/switch-to-final))
+\end{verbatim}
+
+\subsubsection{Info colors}
+\label{sec:org9e4dbf2}
+Better colors for manual pages.
+
+\begin{verbatim}
+(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! info-colors
+  :commands (info-colors-fontify-node))
+
+(add-hook 'Info-selection-hook 'info-colors-fontify-node)
+\end{verbatim}
+
+\subsubsection{The Silver Searcher}
+\label{sec:orge5ab11c}
+An Emacs front-end to \emph{The Silver Searcher}, first we need to install \texttt{ag} using
+\texttt{brew install the\_silver\_searcher}.
+
+\begin{verbatim}
+(package! ag :pin "ed7e32064f92f1315cecbfc43f120bbc7508672c")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! ag
+  :when AG-P
+  :commands (ag
+             ag-files
+             ag-regexp
+             ag-project
+             ag-project-files
+             ag-project-regexp))
+\end{verbatim}
+
+\subsubsection{Page break lines}
+\label{sec:org5e2ba1d}
+A feature that displays ugly form feed characters as tidy horizontal rules.
+Inspired by \href{https://github.com/MatthewZMD/.emacs.d\#page-break-lines}{M-EMACS}.
+
+\begin{verbatim}
+(package! page-break-lines :pin "79eca86e0634ac68af862e15c8a236c37f446dcd")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! page-break-lines
+  :diminish
+  :init (global-page-break-lines-mode))
+\end{verbatim}
+
+\subsubsection{PDF tools}
+\label{sec:org9854370}
+The \texttt{pdf-tools} package supports dark mode (midnight), I use Emacs often to write
+and read PDF documents, so let's make it dark by default, this can be toggled
+using the \texttt{m z}.
+
+\begin{verbatim}
+(after! pdf-tools
+  ;; Auto install
+  (pdf-tools-install-noverify)
+
+  (setq-default pdf-view-image-relief 2
+                pdf-view-display-size 'fit-page)
+
+  (add-hook! 'pdf-view-mode-hook
+    (when (memq doom-theme '(modus-vivendi doom-one doom-dark+ doom-vibrant))
+      ;; TODO: find a more generic way to detect if we are in a dark theme
+      (pdf-view-midnight-minor-mode 1)))
+
+  ;; Color the background, so we can see the PDF page borders
+  ;; https://protesilaos.com/emacs/modus-themes#h:ff69dfe1-29c0-447a-915c-b5ff7c5509cd
+  (defun +pdf-tools-backdrop ()
+    (face-remap-add-relative
+     'default
+     `(:background ,(if (memq doom-theme '(modus-vivendi modus-operandi))
+                        (modus-themes-color 'bg-alt)
+                      (doom-color 'bg-alt)))))
+
+  (add-hook 'pdf-tools-enabled-hook #'+pdf-tools-backdrop))
+
+(after! pdf-links
+  ;; Tweak for Modus and `pdf-links'
+  (when (memq doom-theme '(modus-vivendi modus-operandi))
+    ;; https://protesilaos.com/emacs/modus-themes#h:2659d13e-b1a5-416c-9a89-7c3ce3a76574
+    (let ((spec (apply #'append
+                       (mapcar
+                        (lambda (name)
+                          (list name
+                                (face-attribute 'pdf-links-read-link
+                                                name nil 'default)))
+                        '(:family :width :weight :slant)))))
+      (setq pdf-links-read-link-convert-commands
+            `("-density"    "96"
+              "-family"     ,(plist-get spec :family)
+              "-stretch"    ,(let* ((width (plist-get spec :width))
+                                    (name (symbol-name width)))
+                               (replace-regexp-in-string "-" ""
+                                                         (capitalize name)))
+              "-weight"     ,(pcase (plist-get spec :weight)
+                               ('ultra-light "Thin")
+                               ('extra-light "ExtraLight")
+                               ('light       "Light")
+                               ('semi-bold   "SemiBold")
+                               ('bold        "Bold")
+                               ('extra-bold  "ExtraBold")
+                               ('ultra-bold  "Black")
+                               (_weight      "Normal"))
+              "-style"      ,(pcase (plist-get spec :slant)
+                               ('italic  "Italic")
+                               ('oblique "Oblique")
+                               (_slant   "Normal"))
+              "-pointsize"  "%P"
+              "-undercolor" "%f"
+              "-fill"       "%b"
+              "-draw"       "text %X,%Y '%c'")))))
+\end{verbatim}
+
+\subsection{Natural languages}
+\label{sec:org85539f9}
+\subsubsection{Spell-Fu}
+\label{sec:orga06ff14}
+Install the \texttt{aspell} back-end and the dictionaries to use with \texttt{spell-fu}
+
+Now, \texttt{spell-fu} supports multiple languages! Let's add English, French and Arabic.
+So I can ``mélanger les langues sans avoir de problèmes!''.
+
+\begin{verbatim}
+(after! spell-fu
+  (defun +spell-fu-register-dictionary (lang)
+    "Add `LANG` to spell-fu multi-dict, with a personal dictionary."
+    ;; Add the dictionary
+    (spell-fu-dictionary-add (spell-fu-get-ispell-dictionary lang))
+    (let ((personal-dict-file (expand-file-name (format "aspell.%s.pws" lang) doom-user-dir)))
+      ;; Create an empty personal dictionary if it doesn't exists
+      (unless (file-exists-p personal-dict-file) (write-region "" nil personal-dict-file))
+      ;; Add the personal dictionary
+      (spell-fu-dictionary-add (spell-fu-get-personal-dictionary (format "%s-personal" lang) personal-dict-file))))
+
+  (add-hook 'spell-fu-mode-hook
+            (lambda ()
+              (+spell-fu-register-dictionary +my/lang-main)
+              (+spell-fu-register-dictionary +my/lang-secondary))))
+\end{verbatim}
+
+\subsubsection{Proselint}
+\label{sec:orgfc3e498}
+A good and funny linter for English prose!, install via \texttt{pip install proselint}.
+
+\begin{verbatim}
+(after! flycheck
+  (flycheck-define-checker proselint
+    "A linter for prose."
+    :command ("proselint" source-inplace)
+    :error-patterns
+    ((warning line-start (file-name) ":" line ":" column ": "
+              (id (one-or-more (not (any " "))))
+              (message) line-end))
+    :modes (text-mode markdown-mode gfm-mode org-mode))
+
+  ;; TODO: Can be enabled automatically for English documents using `guess-language'
+  (defun +flycheck-proselint-toggle ()
+    "Toggle Proselint checker for the current buffer."
+    (interactive)
+    (if (and (fboundp 'guess-language-buffer) (string= "en" (guess-language-buffer)))
+        (if (memq 'proselint flycheck-checkers)
+            (setq-local flycheck-checkers (delete 'proselint flycheck-checkers))
+          (setq-local flycheck-checkers (append flycheck-checkers '(proselint))))
+      (message "Proselint understands only English!"))))
+\end{verbatim}
+
+\subsubsection{Grammarly}
+\label{sec:org2030daf}
+Use either \href{https://github.com/emacs-grammarly/eglot-grammarly}{eglot-grammarly} or \href{https://github.com/emacs-grammarly/lsp-grammarly}{lsp-grammarly}.
+
+\begin{verbatim}
+(package! grammarly
+  :recipe (:host github
+           :repo "emacs-grammarly/grammarly")
+  :pin "e47b370faace9ca081db0b87ae3bcfd73212c56d")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! grammarly
+  :config
+  (grammarly-load-from-authinfo))
+\end{verbatim}
+
+\paragraph{Eglot}
+\label{sec:orgcb14558}
+
+\begin{verbatim}
+(package! eglot-grammarly
+  :disable (not (modulep! :tools lsp +eglot))
+  :recipe (:host github
+           :repo "emacs-grammarly/eglot-grammarly")
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! eglot-grammarly
+  :commands (+lsp-grammarly-load)
+  :init
+  (defun +lsp-grammarly-load ()
+    "Load Grammarly LSP server for Eglot."
+    (interactive)
+    (require 'eglot-grammarly)
+    (call-interactively #'eglot)))
+\end{verbatim}
+
+\paragraph{LSP Mode}
+\label{sec:org25e83b2}
+
+\begin{verbatim}
+(package! lsp-grammarly
+  :disable (or (not (modulep! :tools lsp)) (modulep! :tools lsp +eglot))
+  :recipe (:host github
+           :repo "emacs-grammarly/lsp-grammarly")
+  :pin "eab5292037478c32e7d658fb5cba8b8fb6d72a7c")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! lsp-grammarly
+  :commands (+lsp-grammarly-load +lsp-grammarly-toggle)
+  :init
+  (defun +lsp-grammarly-load ()
+    "Load Grammarly LSP server for LSP Mode."
+    (interactive)
+    (require 'lsp-grammarly)
+    (lsp-deferred)) ;; or (lsp)
+
+  (defun +lsp-grammarly-enabled-p ()
+    (not (member 'grammarly-ls lsp-disabled-clients)))
+
+  (defun +lsp-grammarly-enable ()
+    "Enable Grammarly LSP."
+    (interactive)
+    (when (not (+lsp-grammarly-enabled-p))
+      (setq lsp-disabled-clients (remove 'grammarly-ls lsp-disabled-clients))
+      (message "Enabled grammarly-ls"))
+    (+lsp-grammarly-load))
+
+  (defun +lsp-grammarly-disable ()
+    "Disable Grammarly LSP."
+    (interactive)
+    (when (+lsp-grammarly-enabled-p)
+      (add-to-list 'lsp-disabled-clients 'grammarly-ls)
+      (lsp-disconnect)
+      (message "Disabled grammarly-ls")))
+
+  (defun +lsp-grammarly-toggle ()
+    "Enable/disable Grammarly LSP."
+    (interactive)
+    (if (+lsp-grammarly-enabled-p)
+        (+lsp-grammarly-disable)
+      (+lsp-grammarly-enable)))
+
+  (after! lsp-mode
+    ;; Disable by default
+    (add-to-list 'lsp-disabled-clients 'grammarly-ls))
+
+  :config
+  (set-lsp-priority! 'grammarly-ls 1))
+\end{verbatim}
+
+\subsubsection{Grammalecte}
+\label{sec:org6bfe0f3}
+
+\begin{verbatim}
+(package! flycheck-grammalecte
+  :recipe (:host github
+           :repo "milouse/flycheck-grammalecte")
+  :pin "314de13247710410f11d060a214ac4f400c02a71")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! flycheck-grammalecte
+  :when nil ;; BUG: Disabled, there is a Python error
+  :commands (flycheck-grammalecte-correct-error-at-point
+             grammalecte-conjugate-verb
+             grammalecte-define
+             grammalecte-define-at-point
+             grammalecte-find-synonyms
+             grammalecte-find-synonyms-at-point)
+  :init
+  (setq grammalecte-settings-file (expand-file-name "grammalecte/grammalecte-cache.el" doom-data-dir)
+        grammalecte-python-package-directory (expand-file-name "grammalecte/grammalecte" doom-data-dir))
+
+  (setq flycheck-grammalecte-report-spellcheck t
+        flycheck-grammalecte-report-grammar t
+        flycheck-grammalecte-report-apos nil
+        flycheck-grammalecte-report-esp nil
+        flycheck-grammalecte-report-nbsp nil
+        flycheck-grammalecte-filters
+        '("(?m)^# ?-*-.+$"
+          ;; Ignore LaTeX equations (inline and block)
+          "\\$.*?\\$"
+          "(?s)\\\\begin{\\(?1:\\(?:equation.\\|align.\\)\\)}.*?\\\\end{\\1}"))
+
+  (map! :leader :prefix ("l" . "custom")
+        (:prefix ("g" . "grammalecte")
+         :desc "Correct error at point"     "p" #'flycheck-grammalecte-correct-error-at-point
+         :desc "Conjugate a verb"           "V" #'grammalecte-conjugate-verb
+         :desc "Define a word"              "W" #'grammalecte-define
+         :desc "Conjugate a verb at point"  "w" #'grammalecte-define-at-point
+         :desc "Find synonyms"              "S" #'grammalecte-find-synonyms
+         :desc "Find synonyms at point"     "s" #'grammalecte-find-synonyms-at-point))
+
+  :config
+  (grammalecte-download-grammalecte)
+  (flycheck-grammalecte-setup))
+\end{verbatim}
+
+\subsubsection{LTeX/LanguageTool}
+\label{sec:orgf829bf4}
+Originally, \href{https://valentjn.github.io/ltex/index.html}{LTeX LS} stands for \emph{\LaTeX{} Language Server}, it acts as a Language
+Server for \LaTeX{}, but not only. It can check the grammar and the spelling of
+several markup languages such as BibTeX, ConTeXt, \LaTeX{}, Markdown, Org,
+reStructuredText\ldots{} and others. Alongside, it provides interfacing with
+LanguageTool to implement natural language checking.
+
+\begin{verbatim}
+(after! lsp-ltex
+  (setq lsp-ltex-language "auto"
+        lsp-ltex-mother-tongue +my/lang-mother-tongue
+        flycheck-checker-error-threshold 1000)
+
+  (advice-add
+   '+lsp-ltex-setup :after
+   (lambda ()
+     (setq-local lsp-idle-delay 5.0
+                 lsp-progress-function #'lsp-on-progress-legacy
+                 lsp-progress-spinner-type 'half-circle
+                 lsp-ui-sideline-show-code-actions nil
+                 lsp-ui-sideline-show-diagnostics nil
+                 lsp-ui-sideline-enable nil)))
+
+  ;; FIXME
+  (defun +lsp-ltex-check-document ()
+    (interactive)
+    (when-let ((file (buffer-file-name)))
+      (let* ((uri (lsp--path-to-uri file))
+             (beg (region-beginning))
+             (end (region-end))
+             (req (if (region-active-p)
+                      `(:uri ,uri
+                        :range ,(lsp--region-to-range beg end))
+                    `(:uri ,uri))))
+        (lsp-send-execute-command "_ltex.checkDocument" req)))))
+\end{verbatim}
+
+\subsubsection{Go Translate (Google, Bing and DeepL)}
+\label{sec:orgc165ecd}
+
+\begin{verbatim}
+(package! go-translate
+  :recipe (:host github
+           :repo "lorniu/go-translate")
+  :pin "8bbcbce42a7139f079df3e9b9bda0def2cbb690f")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! go-translate
+  :commands (gts-do-translate
+             +gts-yank-translated-region
+             +gts-translate-with)
+  :init
+  ;; Your languages pairs
+  (setq gts-translate-list (list (list +my/lang-main +my/lang-secondary)
+                                 (list +my/lang-main +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-mother-tongue)
+                                 (list +my/lang-secondary +my/lang-main)))
+
+  (map! :localleader
+        :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
+        :desc "Yank translated region" "R" #'+gts-yank-translated-region)
+
+  (map! :leader :prefix "l"
+        (:prefix ("G" . "go-translate")
+         :desc "Bing"                   "b" (lambda () (interactive) (+gts-translate-with 'bing))
+         :desc "DeepL"                  "d" (lambda () (interactive) (+gts-translate-with 'deepl))
+         :desc "Google"                 "g" (lambda () (interactive) (+gts-translate-with))
+         :desc "Yank translated region" "R" #'+gts-yank-translated-region
+         :desc "gts-do-translate"       "t" #'gts-do-translate))
+
+  :config
+  ;; Config the default translator, which will be used by the command `gts-do-translate'
+  (setq gts-default-translator
+        (gts-translator
+         ;; Used to pick source text, from, to. choose one.
+         :picker (gts-prompt-picker)
+         ;; One or more engines, provide a parser to give different output.
+         :engines (gts-google-engine :parser (gts-google-summary-parser))
+         ;; Render, only one, used to consumer the output result.
+         :render (gts-buffer-render)))
+
+  ;; Custom texter which remove newlines in the same paragraph
+  (defclass +gts-translate-paragraph (gts-texter) ())
+
+  (cl-defmethod gts-text ((_ +gts-translate-paragraph))
+    (when (use-region-p)
+      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
+        (with-temp-buffer
+          (insert text)
+          (goto-char (point-min))
+          (let ((case-fold-search nil))
+            (while (re-search-forward "\n[^\n]" nil t)
+              (replace-region-contents
+               (- (point) 2) (- (point) 1)
+               (lambda (&optional a b) " ")))
+            (buffer-string))))))
+
+  ;; Custom picker to use the paragraph texter
+  (defclass +gts-paragraph-picker (gts-picker)
+    ((texter :initarg :texter :initform (+gts-translate-paragraph))))
+
+  (cl-defmethod gts-pick ((o +gts-paragraph-picker))
+    (let ((text (gts-text (oref o texter))))
+      (when (or (null text) (zerop (length text)))
+        (user-error "Make sure there is any word at point, or selection exists"))
+      (let ((path (gts-path o text)))
+        (setq gts-picker-current-path path)
+        (cl-values text path))))
+
+  (defun +gts-yank-translated-region ()
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines (gts-google-engine)
+      :render (gts-kill-ring-render))))
+
+  (defun +gts-translate-with (&optional engine)
+    (interactive)
+    (gts-translate
+     (gts-translator
+      :picker (+gts-paragraph-picker)
+      :engines
+      (cond ((eq engine 'deepl)
+             (gts-deepl-engine
+              :auth-key ;; Get API key from ~/.authinfo.gpg (machine api-free.deepl.com)
+              (funcall
+               (plist-get (car (auth-source-search :host "api-free.deepl.com" :max 1))
+                          :secret))
+              :pro nil))
+            ((eq engine 'bing) (gts-bing-engine))
+            (t (gts-google-engine)))
+      :render (gts-buffer-render)))))
+\end{verbatim}
+
+\subsubsection{Offline dictionaries}
+\label{sec:org02c4176}
+Needs \texttt{sdcv} to be installed, needs also \emph{StarDict} dictionaries, you can download
+some from \href{https://sites.google.com/site/gtonguedict/home/stardict-dictionaries}{here} and \href{https://polyglotte.tuxfamily.org/doku.php?id=donnees:dicos\_bilingues}{here} for french.
+
+\begin{verbatim}
+(package! lexic
+  :recipe (:host github
+           :repo "tecosaur/lexic")
+  :pin "f9b3de4d9c2dd1ce5022383e1a504b87bf7d1b09")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! lexic
+  :commands (lexic-search lexic-list-dictionary)
+  :config
+  (map! :map lexic-mode-map
+        :n "q" #'lexic-return-from-lexic
+        :nv "RET" #'lexic-search-word-at-point
+        :n "a" #'outline-show-all
+        :n "h" (cmd! (outline-hide-sublevels 3))
+        :n "o" #'lexic-toggle-entry
+        :n "n" #'lexic-next-entry
+        :n "N" (cmd! (lexic-next-entry t))
+        :n "p" #'lexic-previous-entry
+        :n "P" (cmd! (lexic-previous-entry t))
+        :n "E" (cmd! (lexic-return-from-lexic) ; expand
+                     (switch-to-buffer (lexic-get-buffer)))
+        :n "M" (cmd! (lexic-return-from-lexic) ; minimise
+                     (lexic-goto-lexic))
+        :n "C-p" #'lexic-search-history-backwards
+        :n "C-n" #'lexic-search-history-forwards
+        :n "/" (cmd! (call-interactively #'lexic-search))))
+\end{verbatim}
+
+\section{Completion \& IDE}
+\label{sec:orgefff4ee}
+\subsection{UI Package}
+\label{sec:orgf61c19a}
+\subsubsection{Which key}
+\label{sec:org22f454c}
+Make \texttt{which-key} popup faster.
+
+\begin{verbatim}
+(setq which-key-idle-delay 0.5 ;; Default is 1.0
+      which-key-idle-secondary-delay 0.05) ;; Default is nil
+\end{verbatim}
+
+\begin{itemize}
+\item Tôi sử ăn cắp config này từ ``tecosaur's config'', nó giúp replace các evil
+\texttt{prefix} với unicode symbok, giúp cho which-key xịn xò hơn.
+\end{itemize}
+
+\begin{verbatim}
+(setq which-key-allow-multiple-replacements t)
+
+(after! which-key
+  (pushnew! which-key-replacement-alist
+            '((""       . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "🅔·\\1"))
+            '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)")       . (nil . "Ⓔ·\\1"))))
+\end{verbatim}
+
+\subsubsection{Company}
+\label{sec:org764fbc3}
+\paragraph{Disabled for some mode}
+\label{sec:orgd82e87d}
+\begin{itemize}
+\item Tắt chức năng Company trên một vài mode không hữu dụng.
+\end{itemize}
+\begin{verbatim}
+(setq company-global-modes
+      '(not erc-mode
+            circe-mode
+            message-mode
+            help-mode
+            gud-mode
+            vterm-mode
+            ;;org-mode
+            ))
+\end{verbatim}
+
+\paragraph{Tweak \texttt{company-box}}
+\label{sec:org9541a00}
+
+\begin{verbatim}
+(after! company-box
+  (defun +company-box--reload-icons-h ()
+    (setq company-box-icons-all-the-icons
+          (let ((all-the-icons-scale-factor 0.8))
+            `((Unknown       . ,(all-the-icons-faicon   "code"                 :face 'all-the-icons-purple))
+              (Text          . ,(all-the-icons-material "text_fields"          :face 'all-the-icons-green))
+              (Method        . ,(all-the-icons-faicon   "cube"                 :face 'all-the-icons-red))
+              (Function      . ,(all-the-icons-faicon   "cube"                 :face 'all-the-icons-blue))
+              (Constructor   . ,(all-the-icons-faicon   "cube"                 :face 'all-the-icons-blue-alt))
+              (Field         . ,(all-the-icons-faicon   "tag"                  :face 'all-the-icons-red))
+              (Variable      . ,(all-the-icons-material "adjust"               :face 'all-the-icons-blue))
+              (Class         . ,(all-the-icons-material "class"                :face 'all-the-icons-red))
+              (Interface     . ,(all-the-icons-material "tune"                 :face 'all-the-icons-red))
+              (Module        . ,(all-the-icons-faicon   "cubes"                :face 'all-the-icons-red))
+              (Property      . ,(all-the-icons-faicon   "wrench"               :face 'all-the-icons-red))
+              (Unit          . ,(all-the-icons-material "straighten"           :face 'all-the-icons-red))
+              (Value         . ,(all-the-icons-material "filter_1"             :face 'all-the-icons-red))
+              (Enum          . ,(all-the-icons-material "plus_one"             :face 'all-the-icons-red))
+              (Keyword       . ,(all-the-icons-material "filter_center_focus"  :face 'all-the-icons-red-alt))
+              (Snippet       . ,(all-the-icons-faicon   "expand"               :face 'all-the-icons-red))
+              (Color         . ,(all-the-icons-material "colorize"             :face 'all-the-icons-red))
+              (File          . ,(all-the-icons-material "insert_drive_file"    :face 'all-the-icons-red))
+              (Reference     . ,(all-the-icons-material "collections_bookmark" :face 'all-the-icons-red))
+              (Folder        . ,(all-the-icons-material "folder"               :face 'all-the-icons-red-alt))
+              (EnumMember    . ,(all-the-icons-material "people"               :face 'all-the-icons-red))
+              (Constant      . ,(all-the-icons-material "pause_circle_filled"  :face 'all-the-icons-red))
+              (Struct        . ,(all-the-icons-material "list"                 :face 'all-the-icons-red))
+              (Event         . ,(all-the-icons-material "event"                :face 'all-the-icons-red))
+              (Operator      . ,(all-the-icons-material "control_point"        :face 'all-the-icons-red))
+              (TypeParameter . ,(all-the-icons-material "class"                :face 'all-the-icons-red))
+              (Template      . ,(all-the-icons-material "settings_ethernet"    :face 'all-the-icons-green))
+              (ElispFunction . ,(all-the-icons-faicon   "cube"                 :face 'all-the-icons-blue))
+              (ElispVariable . ,(all-the-icons-material "adjust"               :face 'all-the-icons-blue))
+              (ElispFeature  . ,(all-the-icons-material "stars"                :face 'all-the-icons-orange))
+              (ElispFace     . ,(all-the-icons-material "format_paint"         :face 'all-the-icons-pink))))))
+
+  (when (daemonp)
+    ;; Replace Doom defined icons with mine
+    (when (memq #'+company-box--load-all-the-icons server-after-make-frame-hook)
+      (remove-hook 'server-after-make-frame-hook #'+company-box--load-all-the-icons))
+    (add-hook 'server-after-make-frame-hook #'+company-box--reload-icons-h))
+
+  ;; Reload icons even if not in Daemon mode
+  (+company-box--reload-icons-h))
+\end{verbatim}
+
+\subsubsection{Treemacs}
+\label{sec:org9c82796}
+
+\begin{verbatim}
+(after! treemacs
+  (require 'dired)
+
+  ;; My custom stuff (from tecosaur's config)
+  (setq +treemacs-file-ignore-extensions
+        '(;; LaTeX
+          "aux" "ptc" "fdb_latexmk" "fls" "synctex.gz" "toc"
+          ;; LaTeX - bibliography
+          "bbl"
+          ;; LaTeX - glossary
+          "glg" "glo" "gls" "glsdefs" "ist" "acn" "acr" "alg"
+          ;; LaTeX - pgfplots
+          "mw"
+          ;; LaTeX - pdfx
+          "pdfa.xmpi"
+          ;; Python
+          "pyc"))
+
+  (setq +treemacs-file-ignore-globs
+        '(;; LaTeX
+          "*/_minted-*"
+          ;; AucTeX
+          "*/.auctex-auto"
+          "*/_region_.log"
+          "*/_region_.tex"
+          ;; Python
+          "*/__pycache__"))
+
+  ;; Reload treemacs theme
+  (setq doom-themes-treemacs-enable-variable-pitch nil
+        doom-themes-treemacs-theme "doom-colors")
+  (doom-themes-treemacs-config)
+
+  (setq treemacs-show-hidden-files nil
+        treemacs-hide-dot-git-directory t
+        treemacs-width 30)
+
+  (defvar +treemacs-file-ignore-extensions '()
+    "File extension which `treemacs-ignore-filter' will ensure are ignored")
+
+  (defvar +treemacs-file-ignore-globs '()
+    "Globs which will are transformed to `+treemacs-file-ignore-regexps' which `+treemacs-ignore-filter' will ensure are ignored")
+
+  (defvar +treemacs-file-ignore-regexps '()
+    "RegExps to be tested to ignore files, generated from `+treeemacs-file-ignore-globs'")
+
+  (defun +treemacs-file-ignore-generate-regexps ()
+    "Generate `+treemacs-file-ignore-regexps' from `+treemacs-file-ignore-globs'"
+    (setq +treemacs-file-ignore-regexps (mapcar 'dired-glob-regexp +treemacs-file-ignore-globs)))
+
+  (unless (equal +treemacs-file-ignore-globs '())
+    (+treemacs-file-ignore-generate-regexps))
+
+  (defun +treemacs-ignore-filter (file full-path)
+    "Ignore files specified by `+treemacs-file-ignore-extensions', and `+treemacs-file-ignore-regexps'"
+    (or (member (file-name-extension file) +treemacs-file-ignore-extensions)
+        (let ((ignore-file nil))
+          (dolist (regexp +treemacs-file-ignore-regexps ignore-file)
+            (setq ignore-file (or ignore-file (if (string-match-p regexp full-path) t nil)))))))
+
+  (add-to-list 'treemacs-ignored-file-predicates #'+treemacs-ignore-filter))
+\end{verbatim}
+
+\subsubsection{Projectile}
+\label{sec:org86cbc21}
+\begin{itemize}
+\item Vũ sử dụng Projectile để quản lý project, Doom cũng hỗ trợ quản lý bằng
+doom-project nhưng vũ sử dụng projectile từ vanilla qua nên cảm thấy nó sử
+dụng tốt hơn.
+\end{itemize}
+
+\begin{verbatim}
+;; Run `M-x projectile-discover-projects-in-search-path' to reload paths from this variable
+(setq projectile-project-search-path '("~/Dropbox/PhD/papers"
+                                       "~/Dropbox/PhD/workspace"
+                                       "~/Dropbox/PhD/workspace-no"
+                                       "~/Dropbox/PhD/workspace-no/ez-wheel/swd-starter-kit-repo"
+                                       ("~/myProjects/" . 2))) ;; ("dir" . depth)
+
+(setq projectile-ignored-projects '("/tmp"
+                                    "~/"
+                                    "~/.cache"
+                                    "~/.doom.d"
+                                    "~/.emacs.d/.local/straight/repos/"))
+
+(setq +projectile-ignored-roots
+      '("~/.cache"
+        ;; No need for this one, as `doom-project-ignored-p' checks for files in `doom-local-dir'
+        "~/.emacs.d/.local/straight/"))
+
+(defun +projectile-ignored-project-function (filepath)
+  "Return t if FILEPATH is within any of `+projectile-ignored-roots'"
+  (require 'cl-lib)
+  (or (doom-project-ignored-p filepath) ;; Used by default by doom with `projectile-ignored-project-function'
+      (cl-some (lambda (root) (file-in-directory-p (expand-file-name filepath) (expand-file-name root)))
+          +projectile-ignored-roots)))
+
+(setq projectile-ignored-project-function #'+projectile-ignored-project-function)
+\end{verbatim}
+
+\subsubsection{Tramp}
+\label{sec:orgfd53eff}
+Let's try to make tramp handle prompts better
+
+\begin{verbatim}
+(after! tramp
+  (setenv "SHELL" "/bin/bash")
+  (setq tramp-shell-prompt-pattern "\\(?:^\\|\\)[^]#$%>\n]*#?[]#$%>] *\\(\\[[0-9;]*[a-zA-Z] *\\)*")) ;; default + 
+\end{verbatim}
+
+\subsubsection{Eros-eval}
+\label{sec:org203135d}
+This makes the result of evals slightly prettier.
+
+\begin{verbatim}
+(setq eros-eval-result-prefix "⟹ ")
+\end{verbatim}
+
+\subsubsection{\texttt{dir-locals.el}}
+\label{sec:org9833908}
+Reload \texttt{dir-locals.el} variables after modification. Taken from \href{https://emacs.stackexchange.com/a/13096}{this answer}.
+
+\begin{verbatim}
+(defun +dir-locals-reload-for-current-buffer ()
+  "reload dir locals for the current buffer"
+  (interactive)
+  (let ((enable-local-variables :all))
+    (hack-dir-local-variables-non-file-buffer)))
+
+(defun +dir-locals-reload-for-all-buffers-in-this-directory ()
+  "For every buffer with the same `default-directory` as the
+current buffer's, reload dir-locals."
+  (interactive)
+  (let ((dir default-directory))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (equal default-directory dir)
+          (+dir-locals-reload-for-current-buffer))))))
+
+(defun +dir-locals-enable-autoreload ()
+  (when (and (buffer-file-name)
+             (equal dir-locals-file (file-name-nondirectory (buffer-file-name))))
+    (message "Dir-locals will be reloaded after saving.")
+    (add-hook 'after-save-hook '+dir-locals-reload-for-all-buffers-in-this-directory nil t)))
+
+(add-hook! '(emacs-lisp-mode-hook lisp-data-mode-hook) #'+dir-locals-enable-autoreload)
+\end{verbatim}
+
+\subsubsection{Erefactor}
+\label{sec:org22e53d7}
+
+\begin{verbatim}
+(package! erefactor
+  :recipe (:host github
+           :repo "mhayashi1120/Emacs-erefactor")
+  :pin "bfe27a1b8c7cac0fe054e76113e941efa3775fe8")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! erefactor
+  :defer t)
+\end{verbatim}
+
+\subsubsection{Lorem ipsum}
+\label{sec:org7692d26}
+
+\begin{verbatim}
+(package! emacs-lorem-ipsum
+  :recipe (:host github
+           :repo "jschaf/emacs-lorem-ipsum")
+  :pin "da75c155da327c7a7aedb80f5cfe409984787049")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! lorem-ipsum
+  :commands (lorem-ipsum-insert-sentences
+             lorem-ipsum-insert-paragraphs
+             lorem-ipsum-insert-list))
+\end{verbatim}
+
+\subsubsection{Coverage test}
+\label{sec:orgb510d7f}
+
+\begin{verbatim}
+(package! cov :pin "cd3e1995c596cc227124db9537792d8329ffb696")
+\end{verbatim}
+
+\subsection{Languages}
+\label{sec:org593ba14}
+\subsubsection{Language Server Protocol}
+\label{sec:orga1d2a3c}
+\paragraph{Eglot}
+\label{sec:orgda49417}
+Eglot uses \texttt{project.el} to detect the project root. This is \href{https://github.com/joaotavora/eglot/issues/129\#issuecomment-444130367}{a workaround} to make
+it work with \texttt{projectile}:
+
+\begin{verbatim}
+(after! eglot
+  ;; A hack to make it works with projectile
+  (defun projectile-project-find-function (dir)
+    (let* ((root (projectile-project-root dir)))
+      (and root (cons 'transient root))))
+
+  (with-eval-after-load 'project
+    (add-to-list 'project-find-functions 'projectile-project-find-function))
+
+  ;; Use clangd with some options
+  (set-eglot-client! 'c++-mode '("clangd" "-j=3" "--clang-tidy")))
+\end{verbatim}
+
+\paragraph{LSP mode}
+\label{sec:orgf8a91d9}
+\subparagraph{Unpin package}
+\label{sec:org642518f}
+
+\begin{verbatim}
+(unpin! lsp-mode)
+\end{verbatim}
+
+\subparagraph{Tweaks}
+\label{sec:orge10481d}
+\begin{enumerate}
+\item Performance
+\label{sec:org1e5e3d3}
+Use \texttt{plist} instead of hash table, LSP mode needs to be reinstalled after setting
+this environment variable (\href{https://emacs-lsp.github.io/lsp-mode/page/performance/\#use-plists-for-deserialization}{see}).
+
+\begin{verbatim}
+(after! lsp-mode
+  (setq lsp-idle-delay 1.0
+        lsp-log-io nil
+        gc-cons-threshold (* 1024 1024 100))) ;; 100MiB
+\end{verbatim}
+
+\item Features \& UI
+\label{sec:org07cf25d}
+LSP mode provides a \href{https://emacs-lsp.github.io/lsp-mode/tutorials/how-to-turn-off/}{set of configurable UI stuff}. By default, Doom Emacs
+disables some UI components; however, I like to enable some less intrusive, more
+useful UI stuff.
+
+\begin{verbatim}
+(after! lsp-mode
+  (setq lsp-lens-enable t
+        lsp-semantic-tokens-enable t ;; hide unreachable ifdefs
+        lsp-enable-symbol-highlighting t
+        lsp-headerline-breadcrumb-enable nil
+        ;; LSP UI related tweaks
+        lsp-ui-sideline-enable nil
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-symbol nil
+        lsp-ui-sideline-show-diagnostics nil
+        lsp-ui-sideline-show-code-actions nil))
+\end{verbatim}
+\end{enumerate}
+
+\subparagraph{LSP mode with \texttt{clangd}}
+\label{sec:org7344c91}
+
+\begin{verbatim}
+(after! lsp-clangd
+  (setq lsp-clients-clangd-args
+        '("-j=4"
+          "--background-index"
+          "--clang-tidy"
+          "--completion-style=detailed"
+          "--header-insertion=never"
+          "--header-insertion-decorators=0"))
+  (set-lsp-priority! 'clangd 1))
+\end{verbatim}
+
+\subparagraph{LSP mode with \texttt{ccls}}
+\label{sec:org4fb9731}
+
+\begin{verbatim}
+;; NOTE: Not tangled, using the default ccls
+(after! ccls
+  (setq ccls-initialization-options
+        '(:index (:comments 2
+                  :trackDependency 1
+                  :threads 4)
+          :completion (:detailedLabel t)))
+  (set-lsp-priority! 'ccls 2)) ; optional as ccls is the default in Doom
+\end{verbatim}
+
+\subparagraph{Enable \texttt{lsp} over \texttt{tramp}}
+\label{sec:org9eef70f}
+\begin{enumerate}
+\item Python
+\label{sec:orgb8cf52e}
+
+\begin{verbatim}
+(after! tramp
+  (when (require 'lsp-mode nil t)
+    ;; (require 'lsp-pyright)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-tramp-connection "pyls")
+      :major-modes '(python-mode)
+      :remote? t
+      :server-id 'pyls-remote))))
+\end{verbatim}
+
+\item C/C++ with \texttt{ccls}
+\label{sec:org3ce30dc}
+
+\begin{verbatim}
+;; NOTE: WIP: Not tangled
+(after! tramp
+  (when (require 'lsp-mode nil t)
+    (require 'ccls)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          lsp-enable-symbol-highlighting t)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection
+      (lsp-tramp-connection
+       (lambda ()
+         (cons ccls-executable ; executable name on remote machine 'ccls'
+               ccls-args)))
+      :major-modes '(c-mode c++-mode objc-mode cuda-mode)
+      :remote? t
+      :server-id 'ccls-remote)))
+
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+\end{verbatim}
+
+\item C/C++ with \texttt{clangd}
+\label{sec:orgd016747}
+
+\begin{verbatim}
+(after! tramp
+  (when (require 'lsp-mode nil t)
+
+    (setq lsp-enable-snippet nil
+          lsp-log-io nil
+          ;; To bypass the "lsp--document-highlight fails if
+          ;; textDocument/documentHighlight is not supported" error
+          lsp-enable-symbol-highlighting nil)
+
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection
+      (lsp-tramp-connection
+       (lambda ()
+         (cons "clangd-12" ; executable name on remote machine 'ccls'
+               lsp-clients-clangd-args)))
+      :major-modes '(c-mode c++-mode objc-mode cuda-mode)
+      :remote? t
+      :server-id 'clangd-remote))))
+\end{verbatim}
+\end{enumerate}
+
+\subparagraph{VHDL}
+\label{sec:org8e816a3}
+By default, LSP uses the proprietary VHDL-Tool to provide LSP features; however,
+there is free and open source alternatives: \texttt{ghdl-ls} and \texttt{rust\_hdl}. I have some
+issues running \texttt{ghdl-ls} installed form \texttt{pip} through the \texttt{pyghdl} package, so let's
+use \texttt{rust\_hdl} instead.
+
+\begin{verbatim}
+(use-package! vhdl-mode
+  :when (and (modulep! :tools lsp) (not (modulep! :tools lsp +eglot)))
+  :hook (vhdl-mode . #'+lsp-vhdl-ls-load)
+  :init
+  (defun +lsp-vhdl-ls-load ()
+    (interactive)
+    (lsp t)
+    (flycheck-mode t))
+
+  :config
+  ;; Required unless vhdl_ls is on the $PATH
+  (setq lsp-vhdl-server-path "~/Projects/foss/repos/rust_hdl/target/release/vhdl_ls"
+        lsp-vhdl-server 'vhdl-ls
+        lsp-vhdl--params nil)
+  (require 'lsp-vhdl))
+\end{verbatim}
+
+\subparagraph{SonarLint}
+\label{sec:orgdc301e8}
+
+\begin{verbatim}
+(package! lsp-sonarlint
+  :disable t :pin "3313f38ed7d23947992e19f1e464c6d544124144")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! lsp-sonarlint)
+\end{verbatim}
+
+\subsubsection{C++}
+\label{sec:org61ed976}
+\paragraph{Cppcheck}
+\label{sec:orge24f485}
+Check for everything!
+
+\begin{verbatim}
+(after! flycheck
+  (setq flycheck-cppcheck-checks '("information"
+                                   "missingInclude"
+                                   "performance"
+                                   "portability"
+                                   "style"
+                                   "unusedFunction"
+                                   "warning"))) ;; Actually, we can use "all"
+\end{verbatim}
+
+\paragraph{Project CMake}
+\label{sec:orge6f52c6}
+\begin{itemize}
+\item Một package mới tương tác rất tối với cmake project, nó là sự kết hợp của
+project, eglot, cmake và clangd.
+\end{itemize}
+
+\begin{verbatim}
+(package! project-cmake
+  :disable t ; (not (modulep! :tools lsp +eglot)) ; Enable only if (lsp +eglot) is used
+  :pin "3313f38ed7d23947992e19f1e464c6d544124144"
+  :recipe (:host github
+           :repo "juanjosegarciaripoll/project-cmake"))
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! project-cmake
+    :config
+    (require 'eglot)
+    (project-cmake-scan-kits)
+    (project-cmake-eglot-integration))
+\end{verbatim}
+
+\paragraph{Clang-format}
+\label{sec:orgf4dcdde}
+
+\begin{verbatim}
+(package! clang-format :pin "e48ff8ae18dc7ab6118c1f6752deb48cb1fc83ac")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! clang-format
+  :when CLANG-FORMAT-P
+  :commands (clang-format-region))
+\end{verbatim}
+
+\paragraph{Auto-include C++ headers}
+\label{sec:orgb18e453}
+
+\begin{verbatim}
+(package! cpp-auto-include
+  :recipe (:host github
+           :repo "emacsorphanage/cpp-auto-include")
+  :pin "0ce829f27d466c083e78b9fe210dcfa61fb417f4")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! cpp-auto-include
+  :commands cpp-auto-include)
+\end{verbatim}
+
+\paragraph{C/C++ preprocessor conditions}
+\label{sec:orgdb1e27c}
+\begin{itemize}
+\item Trong trường hợp LSP không khả dụng, chúng ta sử dụng ifdef.
+\end{itemize}
+
+\begin{verbatim}
+(unless (modulep! :lang cc +lsp) ;; Disable if LSP for C/C++ is enabled
+  (use-package! hideif
+    :hook (c-mode . hide-ifdef-mode)
+    :hook (c++-mode . hide-ifdef-mode)
+    :init
+    (setq hide-ifdef-shadow t
+          hide-ifdef-initially t)))
+\end{verbatim}
+
+\subsubsection{Solidity}
+\label{sec:org999a779}
+\begin{itemize}
+\item Bạn cần cài đặt 2 gói package từ brew. \texttt{solidity-parse} và
+\texttt{prettier-plugin-solidity} và nhớ đảm bảo là bạn đã cài đặt \texttt{prettier}.
+\end{itemize}
+\paragraph{Company}
+\label{sec:orgdd76353}
+\begin{verbatim}
+(use-package! company-solidity
+  :after (company))
+
+
+(use-package! solidity-mode
+  :config
+  (setq format-all-mode nil))
+(setq-hook! 'solidity-mode-hook +format-all-mode nil)
+
+(add-hook 'solidity-mode-hook
+          (lambda ()
+            (set (make-local-variable 'company-backends)
+                 (append '((company-solidity company-capf company-dabbrev-code))
+                         company-backends))))
+
+\end{verbatim}
+
+\paragraph{flycheck}
+\label{sec:orgc2753a1}
+\begin{verbatim}
+(use-package! solidity-flycheck
+  :config
+  (setq solidity-solc-path "~/.nvm/version/node/v16.17.0/lib/node_modules/solc/solc")
+  (setq solidity-solium-path "~/.nvm/version/node/v16.17.0/bin/solium")
+  (setq solidity-flycheck-solc-checker-active t)
+  (setq solidity-flycheck-solium-checker-active t)
+  (setq flycheck-solidity-solc-addstd-contracts t)
+  (setq flycheck-solidity-solium-soliumrcfile "~/.soliumrc.json")
+)
+\end{verbatim}
+
+\subsubsection{Typescript}
+\label{sec:orgaca926a}
+\begin{verbatim}
+(package! tree-sitter)
+(package! tree-sitter-langs)
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! typescript-mode
+  :init
+  (define-derived-mode typescript-tsx-ts-mode typescript-mode "typescript-tsx")
+  (add-to-list 'auto-mode-alist (cons (rx ".tsx" string-end) #'typescript-tsx-ts-mode))
+  t)
+
+(add-hook! typescript-tsx-ts-mode 'lsp!)
+
+(use-package! tree-sitter
+  :hook (prog-mode . turn-on-tree-sitter-mode)
+  :hook (tree-sitter-after-on . tree-sitter-hl-mode)
+  :config
+  (require 'tree-sitter-langs)
+
+  (tree-sitter-require 'tsx)
+  (add-to-list 'tree-sitter-major-mode-language-alist '(typescript-tsx-ts-mode . tsx))
+
+  ;; This makes every node a link to a section of code
+  (setq tree-sitter-debug-jump-buttons t
+        ;; and this highlights the entire sub tree in your code
+        tree-sitter-debug-highlight-jump-region t))
+\end{verbatim}
+
+\subsection{Debugging}
+\label{sec:org60f996b}
+\subsubsection{DAP}
+\label{sec:orgf354b5e}
+when the program hits a break point, and automatically delete the session and
+close Hydra when DAP is terminated.
+
+\begin{verbatim}
+(unpin! dap-mode)
+\end{verbatim}
+
+\begin{verbatim}
+(after! dap-mode
+  ;; Set latest versions
+  (setq dap-cpptools-extension-version "1.11.5")
+  (require 'dap-cpptools)
+
+  (setq dap-codelldb-extension-version "1.7.4")
+  (require 'dap-codelldb)
+
+  (setq dap-gdb-lldb-extension-version "0.26.0")
+  (require 'dap-gdb-lldb)
+
+  ;; More minimal UI
+  (setq dap-auto-configure-features '(breakpoints locals expressions tooltip)
+        dap-auto-show-output nil ;; Hide the annoying server output
+        lsp-enable-dap-auto-configure t)
+
+  ;; Automatically trigger dap-hydra when a program hits a breakpoint.
+  (add-hook 'dap-stopped-hook (lambda (arg) (call-interactively #'dap-hydra)))
+
+  ;; Automatically delete session and close dap-hydra when DAP is terminated.
+  (add-hook 'dap-terminated-hook
+            (lambda (arg)
+              (call-interactively #'dap-delete-session)
+              (dap-hydra/nil)))
+
+  ;; A workaround to correctly show breakpoints
+  ;; from: https://github.com/emacs-lsp/dap-mode/issues/374#issuecomment-1140399819
+  (add-hook! +dap-running-session-mode
+    (set-window-buffer nil (current-buffer))))
+\end{verbatim}
+
+\paragraph{Doom store}
+\label{sec:orga2a9dbe}
+Doom Emacs stores session information persistently using the core \texttt{store}
+mechanism. However, relaunching a new session doesn't overwrite the last stored
+session, to do so, I define a helper function to clear data stored in the
+\texttt{"+debugger"} location. (see \texttt{+debugger-{}-get-last-config} function.)
+
+\begin{verbatim}
+(defun +debugger/clear-last-session ()
+  "Clear the last stored session"
+  (interactive)
+  (doom-store-clear "+debugger"))
+
+(map! :leader :prefix ("l" . "custom")
+      (:when (modulep! :tools debugger +lsp)
+       :prefix ("d" . "debugger")
+       :desc "Clear last DAP session" "c" #'+debugger/clear-last-session))
+\end{verbatim}
+
+\subsection{Development Config}
+\label{sec:org9b7cfd9}
+\subsubsection{multi-iedit}
+\label{sec:orga7e1c22}
+\begin{verbatim}
+(package! maple-iedit
+  :recipe `(:local-repo ,(expand-file-name "lisp/maple-iedit" doom-user-dir)))
+\end{verbatim}
+
+\begin{verbatim}
+ (use-package! maple-iedit
+    :commands (maple-iedit-match-all maple-iedit-match-next maple-iedit-match-previous)
+    :config
+    (delete-selection-mode t)
+    (setq maple-iedit-ignore-case t)
+    (defhydra maple/iedit ()
+      ("n" maple-iedit-match-next "next")
+      ("t" maple-iedit-skip-and-match-next "skip and next")
+      ("T" maple-iedit-skip-and-match-previous "skip and previous")
+      ("p" maple-iedit-match-previous "prev"))
+    :bind (:map evil-visual-state-map
+           ("n" . maple/iedit/body)
+           ("C-n" . maple-iedit-match-next)
+           ("C-p" . maple-iedit-match-previous)
+           ("C-t" . map-iedit-skip-and-match-next)
+           ("C-T" . map-iedit-skip-and-match-previous)))
+\end{verbatim}
+
+\subsubsection{exec-path-from-shell}
+\label{sec:org384a15e}
+\begin{itemize}
+\item Setting for debugger mode
+\end{itemize}
+\begin{verbatim}
+(package! exec-path-from-shell)
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! exec-path-from-shell
+  :init (exec-path-from-shell-initialize))
+\end{verbatim}
+
+\subsubsection{engine-mode}
+\label{sec:org8a333ac}
+\begin{verbatim}
+(package! engine-mode)
+\end{verbatim}
+
+\begin{itemize}
+\item Search on browser
+\end{itemize}
+\begin{verbatim}
+   (use-package engine-mode
+     :config
+     (engine/set-keymap-prefix (kbd "C-c s"))
+     (setq browse-url-browser-function 'browse-url-default-macosx-browser
+           engine/browser-function 'browse-url-default-macosx-browser
+           ;; browse-url-generic-program "google-chrome"
+           )
+     (defengine duckduckgo
+       "https://duckduckgo.com/?q=%s"
+       :keybinding "d")
+
+     (defengine github
+       "https://github.com/search?ref=simplesearch&q=%s"
+       :keybinding "1")
+
+     (defengine gitlab
+       "https://gitlab.com/search?search=%s&group_id=&project_id=&snippets=false&repository_ref=&nav_source=navbar"
+       :keybinding "2")
+
+     (defengine stack-overflow
+       "https://stackoverflow.com/search?q=%s"
+       :keybinding "s")
+
+     (defengine npm
+       "https://www.npmjs.com/search?q=%s"
+       :keybinding "n")
+
+     (defengine crates
+       "https://crates.io/search?q=%s"
+       :keybinding "c")
+
+     (defengine localhost
+       "http://localhost:%s"
+       :keybinding "l")
+
+     (defengine translate
+       "https://translate.google.com/?sl=en&tl=vi&text=%s&op=translate"
+       :keybinding "t")
+
+     (defengine youtube
+       "http://www.youtube.com/results?aq=f&oq=&search_query=%s"
+       :keybinding "y")
+
+     (defengine google
+       "http://www.google.com/search?ie=utf-8&oe=utf-8&q=%s"
+       :keybinding "g")
+
+     (engine-mode 1))
+\end{verbatim}
+
+\subsubsection{leetcode}
+\label{sec:org10cfaf7}
+\begin{verbatim}
+(package! leetcode)
+\end{verbatim}
+
+\begin{verbatim}
+(after! leetcode
+  (setq leetcode-prefer-language "rust"
+        leetcode-prefer-sql "mysql"
+        leetcode-save-solutions t
+        leetcode-directory "~/Dropbox/vugomars/leetcode")
+  (set-popup-rule! "^\\*leetcode" :actions '(open-popup-on-side-or-below)))
+\end{verbatim}
+
+\subsubsection{bm}
+\label{sec:orga6245f1}
+\begin{verbatim}
+(package! bm)
+\end{verbatim}
+
+\begin{verbatim}
+(use-package bm
+         :demand t
+
+         :init
+         ;; restore on load (even before you require bm)
+         (setq bm-restore-repository-on-load t)
+
+
+         :config
+         ;; Allow cross-buffer 'next'
+         (setq bm-cycle-all-buffers t)
+
+         ;; where to store persistant files
+         (setq bm-repository-file "~/.emacs.d/bm-repository")
+
+         ;; save bookmarks
+         (setq-default bm-buffer-persistence t)
+
+         ;; Loading the repository from file when on start up.
+         (add-hook 'after-init-hook 'bm-repository-load)
+
+         ;; Saving bookmarks
+         (add-hook 'kill-buffer-hook #'bm-buffer-save)
+
+         ;; Saving the repository to file when on exit.
+         ;; kill-buffer-hook is not called when Emacs is killed, so we
+         ;; must save all bookmarks first.
+         (add-hook 'kill-emacs-hook #'(lambda nil
+                                          (bm-buffer-save-all)
+                                          (bm-repository-save)))
+
+         ;; The `after-save-hook' is not necessary to use to achieve persistence,
+         ;; but it makes the bookmark data in repository more in sync with the file
+         ;; state.
+         (add-hook 'after-save-hook #'bm-buffer-save)
+
+         ;; Restoring bookmarks
+         (add-hook 'find-file-hooks   #'bm-buffer-restore)
+         (add-hook 'after-revert-hook #'bm-buffer-restore)
+
+         ;; The `after-revert-hook' is not necessary to use to achieve persistence,
+         ;; but it makes the bookmark data in repository more in sync with the file
+         ;; state. This hook might cause trouble when using packages
+         ;; that automatically reverts the buffer (like vc after a check-in).
+         ;; This can easily be avoided if the package provides a hook that is
+         ;; called before the buffer is reverted (like `vc-before-checkin-hook').
+         ;; Then new bookmarks can be saved before the buffer is reverted.
+         ;; Make sure bookmarks is saved before check-in (and revert-buffer)
+         (add-hook 'vc-before-checkin-hook #'bm-buffer-save)
+
+
+         ;; key binding
+         :bind (("C-s-0" . bm-toggle)
+                ("C-s-j" . bm-next)
+                ("C-s-k" . bm-previous)
+                ("C-s-s" . bm-show-all))
+         )
+\end{verbatim}
+
+\section{Application}
+\label{sec:org37eb961}
+\subsection{Maxima}
+\label{sec:orgc08449a}
+The Maxima CAS cames bundled with three Emacs modes: \texttt{maxima}, \texttt{imaxima} and
+\texttt{emaxima}; installed by default in \texttt{"/usr/share/emacs/site-lisp/maxima"}.
+
+\subsubsection{Maxima}
+\label{sec:org2249ad7}
+The \href{https://github.com/emacsmirror/maxima}{emacsmirror/maxima} seems more up-to-date, and supports completion via
+Company, so let's install it from GitHub. Note that, normally, we don't need to
+specify a recipe; however, installing it directly seems to not install
+\texttt{company-maxima.el} and \texttt{poly-maxima.el}.
+
+\begin{verbatim}
+(package! maxima
+  :recipe (:host github
+           :repo "emacsmirror/maxima"
+           :files (:defaults
+                   "keywords"
+                   "company-maxima.el"
+                   "poly-maxima.el"))
+  :pin "1334f44725bd80a265de858d652f3fde4ae401fa")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! maxima
+  :when MAXIMA-P
+  :commands (maxima-mode maxima-inferior-mode maxima)
+  :init
+  (require 'straight) ;; to use `straight-build-dir' and `straight-base-dir'
+  (setq maxima-font-lock-keywords-directory ;; a workaround to undo the straight workaround!
+        (expand-file-name (format "straight/%s/maxima/keywords" straight-build-dir) straight-base-dir))
+
+  ;; The `maxima-hook-function' setup `company-maxima'.
+  (add-hook 'maxima-mode-hook #'maxima-hook-function)
+  (add-hook 'maxima-inferior-mode-hook #'maxima-hook-function)
+  (add-to-list 'auto-mode-alist '("\\.ma[cx]\\'" . maxima-mode)))
+\end{verbatim}
+
+\subsubsection{IMaxima}
+\label{sec:org818d337}
+For the \texttt{imaxima} (Maxima with image support), the \href{https://github.com/emacsattic/imaxima}{emacsattic/imaxima} seems
+outdated compared to the \texttt{imaxima} package of the official Maxima distribution, so
+let's install \texttt{imaxima} from the source code of Maxima, hosted on Sourceforge
+\href{https://git.code.sf.net/p/maxima/code}{git.code.sf.net/p/maxima/code}. The package files are stored in the repository's
+subdirectory \texttt{interfaces/emacs/imaxima}.
+
+\begin{verbatim}
+;; Use the `imaxima' package bundled with the official Maxima distribution.
+(package! imaxima
+  :recipe (:host nil ;; Unsupported host, we will specify the complete repo link
+           :repo "https://git.code.sf.net/p/maxima/code"
+           :files ("interfaces/emacs/imaxima/*"))
+  :pin "519ea34095e749634d3a188733a3ad284b593e12")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! imaxima
+  :when MAXIMA-P
+  :commands (imaxima imath-mode)
+  :init
+  (setq imaxima-use-maxima-mode-flag nil ;; otherwise, it don't render equations with LaTeX.
+        imaxima-scale-factor 2.0)
+
+  ;; Hook the `maxima-inferior-mode' to get Company completion.
+  (add-hook 'imaxima-startup-hook #'maxima-inferior-mode))
+(autoload 'imaxima "imaxima" "Image support for Maxima." t)
+\end{verbatim}
+
+\section{Programming}
+\label{sec:orgfca1b92}
+\subsection{CSV rainbow}
+\label{sec:org81b9f4d}
+Stolen from \href{https://www.reddit.com/r/emacs/comments/26c71k/comment/chq2r8m/?utm\_source=reddit\&utm\_medium=web2x\&context=3}{here}.
+
+\begin{verbatim}
+(after! csv-mode
+  ;; TODO: Need to fix the case of two commas, example "a,b,,c,d"
+  (require 'cl-lib)
+  (require 'color)
+
+  (map! :localleader
+        :map csv-mode-map
+        "R" #'+csv-rainbow)
+
+  (defun +csv-rainbow (&optional separator)
+    (interactive (list (when current-prefix-arg (read-char "Separator: "))))
+    (font-lock-mode 1)
+    (let* ((separator (or separator ?\,))
+           (n (count-matches (string separator) (point-at-bol) (point-at-eol)))
+           (colors (cl-loop for i from 0 to 1.0 by (/ 2.0 n)
+                            collect (apply #'color-rgb-to-hex
+                                           (color-hsl-to-rgb i 0.3 0.5)))))
+      (cl-loop for i from 2 to n by 2
+               for c in colors
+               for r = (format "^\\([^%c\n]+%c\\)\\{%d\\}" separator separator i)
+               do (font-lock-add-keywords nil `((,r (1 '(face (:foreground ,c))))))))))
+
+;; provide CSV mode setup
+;; (add-hook 'csv-mode-hook (lambda () (+csv-rainbow)))
+\end{verbatim}
+
+\subsection{Python IDE}
+\label{sec:org1aa322a}
+
+\begin{verbatim}
+(package! elpy :pin "de31d30003c515c25ff7bfd3a361c70c298f78bb")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! elpy
+  :hook ((elpy-mode . flycheck-mode)
+         (elpy-mode . (lambda ()
+                        (set (make-local-variable 'company-backends)
+                             '((elpy-company-backend :with company-yasnippet))))))
+  :config
+  (elpy-enable))
+\end{verbatim}
+
+\subsection{Scheme}
+\label{sec:org1a24b5d}
+
+\begin{verbatim}
+(after! geiser
+  (setq geiser-default-implementation 'guile
+        geiser-chez-binary "chez-scheme")) ;; default is "scheme"
+\end{verbatim}
+
+\subsection{Git \& VC}
+\label{sec:org2bfc7f2}
+\subsubsection{Magit}
+\label{sec:orga77646c}
+
+\begin{verbatim}
+(after! code-review
+  (setq code-review-auth-login-marker 'forge))
+\end{verbatim}
+
+\paragraph{Granular diff-highlights for \emph{all} hunks}
+\label{sec:orgc060abd}
+
+\begin{verbatim}
+(after! magit
+  ;; Disable if it causes performance issues
+  (setq magit-diff-refine-hunk t))
+\end{verbatim}
+
+\paragraph{Gravatars}
+\label{sec:orgb303ca8}
+
+\begin{verbatim}
+(after! magit
+  ;; Show gravatars
+  (setq magit-revision-show-gravatars '("^Author:     " . "^Commit:     ")))
+\end{verbatim}
+
+\paragraph{WIP Company for commit messages}
+\label{sec:orge61a98e}
+
+\begin{verbatim}
+(package! company-conventional-commits
+  :recipe `(:local-repo ,(expand-file-name "lisp/company-conventional-commits" doom-user-dir)))
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! company-conventional-commits
+  :after (magit company)
+  :config
+  (add-hook
+   'git-commit-setup-hook
+   (lambda ()
+     (add-to-list 'company-backends 'company-conventional-commits))))
+\end{verbatim}
+
+\paragraph{Pretty graph}
+\label{sec:orgd286485}
+
+\begin{verbatim}
+(package! magit-pretty-graph
+  :recipe (:host github
+           :repo "georgek/magit-pretty-graph")
+  :pin "26dc5535a20efe781b172bac73f14a5ebe13efa9")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! magit-pretty-graph
+  :after magit
+  :init
+  (setq magit-pg-command
+        (concat "git --no-pager log"
+                " --topo-order --decorate=full"
+                " --pretty=format:\"%H%x00%P%x00%an%x00%ar%x00%s%x00%d\""
+                " -n 2000")) ;; Increase the default 100 limit
+
+  (map! :localleader
+        :map (magit-mode-map)
+        :desc "Magit pretty graph" "p" (cmd! (magit-pg-repo (magit-toplevel)))))
+\end{verbatim}
+
+\subsubsection{Repo}
+\label{sec:org65ea183}
+This adds Emacs integration of \texttt{repo}, The Multiple Git Repository Tool. Make sure
+the \href{https://gerrit.googlesource.com/git-repo}{repo} tool is installed, if not, \texttt{pacman -S repo} on Arch-based distributions,
+or directly with:
+
+\begin{verbatim}
+REPO_PATH="$HOME/.local/bin/repo"
+curl "https://storage.googleapis.com/git-repo-downloads/repo" > "${REPO_PATH}"
+chmod a+x "${REPO_PATH}"
+\end{verbatim}
+
+\begin{verbatim}
+(package! repo :pin "e504aa831bfa38ddadce293face28b3c9d9ff9b7")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! repo
+  :when REPO-P
+  :commands repo-status)
+\end{verbatim}
+
+\subsubsection{Blamer}
+\label{sec:org8bdcd57}
+Display Git information (author, date, message\ldots{}) for current line
+
+\begin{verbatim}
+(package! blamer
+  :recipe (:host github
+           :repo "artawower/blamer.el")
+  :pin "99b43779341af0d924bfe2a9103993a6b9e3d3b2")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! blamer
+  :commands (blamer-mode)
+  ;; :hook ((prog-mode . blamer-mode))
+  :custom
+  (blamer-idle-time 0.3)
+  (blamer-min-offset 60)
+  (blamer-prettify-time-p t)
+  (blamer-entire-formatter "    %s")
+  (blamer-author-formatter " %s ")
+  (blamer-datetime-formatter "[%s], ")
+  (blamer-commit-formatter "“%s”")
+  :custom-face
+  (blamer-face ((t :foreground "#7a88cf"
+                   :background nil
+                   :height 125
+                   :italic t))))
+\end{verbatim}
+
+\subsection{ESS}
+\label{sec:orge3f40b0}
+View data frames better with
+
+\begin{verbatim}
+(package! ess-view :pin "925cafd876e2cc37bc756bb7fcf3f34534b457e2")
+\end{verbatim}
+
+\subsection{Devdocs}
+\label{sec:org4928378}
+\begin{verbatim}
+(package! devdocs
+  :recipe (:host github
+           :repo "astoff/devdocs.el"
+           :files ("*.el"))
+  :pin "61ce83b79dc64e2f99d7f016a09b97e14b331459")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! devdocs
+  :commands (devdocs-lookup devdocs-install)
+  :config
+  (setq devdocs-data-dir (expand-file-name "devdocs" doom-data-dir)))
+\end{verbatim}
+
+\subsection{PKGBUILD}
+\label{sec:orgfb1f326}
+
+\begin{verbatim}
+(package! pkgbuild-mode :pin "9525be8ecbd3a0d0bc7cc27e6d0f403e111aa067")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! pkgbuild-mode
+  :commands (pkgbuild-mode)
+  :mode "/PKGBUILD$")
+\end{verbatim}
+
+\subsection{Flycheck + Projectile}
+\label{sec:org71d05bb}
+WIP: Not working atm!
+
+\begin{verbatim}
+(package! flycheck-projectile
+  :recipe (:host github
+           :repo "nbfalcon/flycheck-projectile")
+  :pin "ce6e9e8793a55dace13d5fa13badab2dca3b5ddb")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! flycheck-projectile
+  :commands flycheck-projectile-list-errors)
+\end{verbatim}
+
+\subsection{Graphviz}
+\label{sec:org410d988}
+Graphviz is a nice method of visualizing simple graphs, based on th DOT graph
+description language (\texttt{*.dot} / \texttt{*.gv} files).
+
+\begin{verbatim}
+(package! graphviz-dot-mode :pin "6e96a89762760935a7dff6b18393396f6498f976")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! graphviz-dot-mode
+  :commands graphviz-dot-mode
+  :mode ("\\.dot\\'" "\\.gv\\'")
+  :init
+  (after! org
+    (setcdr (assoc "dot" org-src-lang-modes) 'graphviz-dot))
+
+  :config
+  (require 'company-graphviz-dot))
+\end{verbatim}
+
+\subsection{Mermaid}
+\label{sec:org70a1342}
+
+\begin{verbatim}
+(package! mermaid-mode :pin "a98a9e733b1da1e6a19e68c1db4367bf46283479")
+
+(package! ob-mermaid
+  :recipe (:host github
+           :repo "arnm/ob-mermaid")
+  :pin "b4ce25699e3ebff054f523375d1cf5a17bd0dbaf")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! mermaid-mode
+  :commands mermaid-mode
+  :mode "\\.mmd\\'")
+
+(use-package! ob-mermaid
+  :after org
+  :init
+  (after! org
+    (add-to-list 'org-babel-load-languages '(mermaid . t))))
+\end{verbatim}
+
+\subsection{\LaTeX{}}
+\label{sec:org2cb3bb7}
+
+\begin{verbatim}
+(package! aas
+  :recipe (:host github
+           :repo "ymarco/auto-activating-snippets")
+  :pin "566944e3b336c29d3ac11cd739a954c9d112f3fb")
+\end{verbatim}
+
+\begin{verbatim}
+(use-package! aas
+  :commands aas-mode)
+\end{verbatim}
+
+\section{Office}
+\label{sec:orgcb10654}
+\subsection{Org additional packages}
+\label{sec:org9e071f8}
+To avoid problems in the \texttt{(after! org)} section.
+
+\begin{verbatim}
+(unpin! org-roam) ;; To avoid problems with org-roam-ui
+(package! websocket :pin "82b370602fa0158670b1c6c769f223159affce9b")
+(package! org-roam-ui :pin "16a8da9e5107833032893bc4c0680b368ac423ac")
+(package! org-wild-notifier :pin "9392b06d20b2f88e45a41bea17bb2f10f24fd19c")
+(package! org-fragtog :pin "c675563af3f9ab5558cfd5ea460e2a07477b0cfd")
+(package! org-appear :pin "60ba267c5da336e75e603f8c7ab3f44e6f4e4dac")
+(package! org-super-agenda :pin "f4f528985397c833c870967884b013cf91a1da4a")
+(package! doct :pin "506c22f365b75f5423810c4933856802554df464")
+
+(package! citar-org-roam
+  :recipe (:host github
+           :repo "emacs-citar/citar-org-roam")
+  :pin "29688b89ac3bf78405fa0dce7e17965aa8fe0dff")
+
+(package! org-menu
+  :recipe (:host github
+           :repo "sheijk/org-menu")
+  :pin "9cd10161c2b50dfef581f3d0441683eeeae6be59")
+
+(package! caldav
+  :recipe (:host github
+           :repo "dengste/org-caldav")
+  :pin "8569941a0a5a9393ba51afc8923fd7b77b73fa7a")
+
+(package! org-ol-tree
+  :recipe (:host github
+           :repo "Townk/org-ol-tree")
+  :pin "207c748aa5fea8626be619e8c55bdb1c16118c25")
+
+(package! org-modern
+  :recipe (:host github
+           :repo "minad/org-modern")
+  :pin "828cf100c62fc9dfb50152c192ac3a968c1b54bc")
+
+(package! org-bib
+  :recipe (:host github
+           :repo "rougier/org-bib-mode")
+  :pin "fed9910186e5e579c2391fb356f55ae24093b55a")
+
+(package! academic-phrases
+  :recipe (:host github
+           :repo "nashamri/academic-phrases")
+  :pin "25d9cf67feac6359cb213f061735e2679c84187f")
+
+(package! phscroll
+  :recipe (:host github
+           :repo "misohena/phscroll")
+  :pin "65e00c89f078997e1a5665d069ad8b1e3b851d49")
+\end{verbatim}
+
+\subsection{Org mode}
+\label{org}
+\subsubsection{Intro}
+\label{sec:org0f59973}
+Because this section is fairly expensive to initialize, we'll wrap it in a
+\texttt{(after! ...)} block.
+
+\begin{verbatim}
+(after! org
+  <<org-conf>>
+)
+\end{verbatim}
+
+\subsubsection{Behavior}
+\label{sec:orgc108e19}
+\paragraph{Tweaking defaults}
+\label{sec:orgda0eff7}
+\subparagraph{Org basics}
+\label{sec:org6cad650}
+
+\begin{verbatim}
+(setq org-directory "~/Dropbox/Org/" ; let's put files here
+      org-use-property-inheritance t ; it's convenient to have properties inherited
+      org-log-done 'time             ; having the time an item is done sounds convenient
+      org-list-allow-alphabetical t  ; have a. A. a) A) list bullets
+      org-export-in-background nil   ; run export processes in external emacs process
+      org-export-async-debug t
+      org-tags-column 0
+      org-catch-invisible-edits 'smart ;; try not to accidently do weird stuff in invisible regions
+      org-export-with-sub-superscripts '{} ;; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+      org-pretty-entities-include-sub-superscripts nil
+      org-auto-align-tags nil
+      org-special-ctrl-a/e t
+      org-startup-indented t ;; Enable 'org-indent-mode' by default, override with '+#startup: noindent' for big files
+      org-insert-heading-respect-content t)
+\end{verbatim}
+
+\subparagraph{Babel}
+\label{sec:orgb6739d0}
+I also like the \texttt{:comments} header-argument, so let's make that a
+default.
+
+\begin{verbatim}
+(setq org-babel-default-header-args
+      '((:session  . "none")
+        (:results  . "replace")
+        (:exports  . "code")
+        (:cache    . "no")
+        (:noweb    . "no")
+        (:hlines   . "no")
+        (:tangle   . "no")
+        (:comments . "link")))
+\end{verbatim}
+
+Babel is really annoying when it comes to working with Scheme (via Geiser), it
+keeps asking about which Scheme implementation to use, I tried to set this as a
+local variable (using )
+and \texttt{.dir-locals.el}, but it didn't work. This hack should solve the problem now!
+
+\begin{verbatim}
+;; stolen from https://github.com/yohan-pereira/.emacs#babel-config
+(defun +org-confirm-babel-evaluate (lang body)
+  (not (string= lang "scheme"))) ;; Don't ask for scheme
+
+(setq org-confirm-babel-evaluate #'+org-confirm-babel-evaluate)
+\end{verbatim}
+
+\subparagraph{EVIL}
+\label{sec:orge6f75e7}
+There also seem to be a few keybindings which use \texttt{hjkl}, but miss arrow key
+equivalents.
+
+\begin{verbatim}
+(map! :map evil-org-mode-map
+      :after evil-org
+      :n "g k" #'org-backward-heading-same-level
+      :n "g j" #'org-forward-heading-same-level
+      :n "g h" #'org-up-element
+      :n "g l" #'org-down-element)
+\end{verbatim}
+
+\paragraph{TODOs}
+\label{sec:org37ae624}
+
+\begin{verbatim}
+(setq org-todo-keywords
+      '((sequence "IDEA(i)" "TODO(t)" "NEXT(n)" "PROJ(p)" "STRT(s)" "WAIT(w)" "HOLD(h)" "|" "DONE(d)" "KILL(k)")
+        (sequence "[ ](T)" "[-](S)" "|" "[X](D)")
+        (sequence "|" "OKAY(o)" "YES(y)" "NO(n)")))
+
+(setq org-todo-keyword-faces
+      '(("IDEA" . (:foreground "goldenrod" :weight bold))
+        ("NEXT" . (:foreground "IndianRed1" :weight bold))
+        ("STRT" . (:foreground "OrangeRed" :weight bold))
+        ("WAIT" . (:foreground "coral" :weight bold))
+        ("KILL" . (:foreground "DarkGreen" :weight bold))
+        ("PROJ" . (:foreground "LimeGreen" :weight bold))
+        ("HOLD" . (:foreground "orange" :weight bold))))
+
+(defun +log-todo-next-creation-date (&rest ignore)
+  "Log NEXT creation time in the property drawer under the key 'ACTIVATED'"
+  (when (and (string= (org-get-todo-state) "NEXT")
+             (not (org-entry-get nil "ACTIVATED")))
+    (org-entry-put nil "ACTIVATED" (format-time-string "[%Y-%m-%d]"))))
+
+(add-hook 'org-after-todo-state-change-hook #'+log-todo-next-creation-date)
+\end{verbatim}
+
+\paragraph{Tags}
+\label{sec:orgf15994f}
+
+\begin{verbatim}
+(setq org-tag-persistent-alist
+      '((:startgroup . nil)
+        ("home"      . ?h)
+        ("research"  . ?r)
+        ("work"      . ?w)
+        (:endgroup   . nil)
+        (:startgroup . nil)
+        ("tool"      . ?o)
+        ("dev"       . ?d)
+        ("report"    . ?p)
+        (:endgroup   . nil)
+        (:startgroup . nil)
+        ("easy"      . ?e)
+        ("medium"    . ?m)
+        ("hard"      . ?a)
+        (:endgroup   . nil)
+        ("urgent"    . ?u)
+        ("key"       . ?k)
+        ("bonus"     . ?b)
+        ("ignore"    . ?i)
+        ("noexport"  . ?x)))
+
+(setq org-tag-faces
+      '(("home"     . (:foreground "goldenrod"  :weight bold))
+        ("research" . (:foreground "goldenrod"  :weight bold))
+        ("work"     . (:foreground "goldenrod"  :weight bold))
+        ("tool"     . (:foreground "IndianRed1" :weight bold))
+        ("dev"      . (:foreground "IndianRed1" :weight bold))
+        ("report"   . (:foreground "IndianRed1" :weight bold))
+        ("urgent"   . (:foreground "red"        :weight bold))
+        ("key"      . (:foreground "red"        :weight bold))
+        ("easy"     . (:foreground "green4"     :weight bold))
+        ("medium"   . (:foreground "orange"     :weight bold))
+        ("hard"     . (:foreground "red"        :weight bold))
+        ("bonus"    . (:foreground "goldenrod"  :weight bold))
+        ("ignore"   . (:foreground "Gray"       :weight bold))
+        ("noexport" . (:foreground "LimeGreen"  :weight bold))))
+
+\end{verbatim}
+
+\paragraph{Agenda}
+\label{sec:orgf34fa12}
+Set files for \texttt{org-agenda}
+
+\begin{verbatim}
+(setq org-agenda-files
+      (list (expand-file-name "inbox.org" org-directory)
+            (expand-file-name "agenda.org" org-directory)
+            (expand-file-name "gcal-agenda.org" org-directory)
+            (expand-file-name "notes.org" org-directory)
+            (expand-file-name "projects.org" org-directory)
+            (expand-file-name "archive.org" org-directory)))
+\end{verbatim}
+
+Apply some styling on the standard agenda:
+
+\begin{verbatim}
+;; Agenda styling
+(setq org-agenda-block-separator ?─
+      org-agenda-time-grid
+      '((daily today require-timed)
+        (800 1000 1200 1400 1600 1800 2000)
+        " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+      org-agenda-current-time-string
+      "⭠ now ─────────────────────────────────────────────────")
+\end{verbatim}
+
+\paragraph{Super agenda}
+\label{sec:org330f9b6}
+Configure \texttt{org-super-agenda}
+
+\begin{verbatim}
+(use-package! org-super-agenda
+  :defer t
+  :config
+  (org-super-agenda-mode)
+  :init
+  (setq org-agenda-skip-scheduled-if-done t
+        org-agenda-skip-deadline-if-done t
+        org-agenda-include-deadlines t
+        org-agenda-block-separator nil
+        org-agenda-tags-column 100 ;; from testing this seems to be a good value
+        org-agenda-compact-blocks t)
+
+  (setq org-agenda-custom-commands
+        '(("o" "Overview"
+           ((agenda "" ((org-agenda-span 'day)
+                        (org-super-agenda-groups
+                         '((:name "Today"
+                            :time-grid t
+                            :date today
+                            :todo "TODAY"
+                            :scheduled today
+                            :order 1)))))
+            (alltodo "" ((org-agenda-overriding-header "")
+                         (org-super-agenda-groups
+                          '((:name "Next to do" :todo "NEXT" :order 1)
+                            (:name "Important" :tag "Important" :priority "A" :order 6)
+                            (:name "Due Today" :deadline today :order 2)
+                            (:name "Due Soon" :deadline future :order 8)
+                            (:name "Overdue" :deadline past :face error :order 7)
+                            (:name "Assignments" :tag "Assignment" :order 10)
+                            (:name "Issues" :tag "Issue" :order 12)
+                            (:name "Emacs" :tag "Emacs" :order 13)
+                            (:name "Projects" :tag "Project" :order 14)
+                            (:name "Research" :tag "Research" :order 15)
+                            (:name "To read" :tag "Read" :order 30)
+                            (:name "Waiting" :todo "WAIT" :order 20)
+                            (:name "University" :tag "Univ" :order 32)
+                            (:name "Trivial" :priority<= "E" :tag ("Trivial" "Unimportant") :todo ("SOMEDAY") :order 90)
+                            (:discard (:tag ("Chore" "Routine" "Daily"))))))))))))
+\end{verbatim}
+
+\paragraph{Calendar}
+\label{sec:org45e863c}
+\subparagraph{Google calendar (\texttt{org-gcal})}
+\label{sec:org6c396da}
+I store my \texttt{org-gcal} configuration privately, it contains something like this:
+
+\begin{verbatim}
+(setq org-gcal-client-id "932458331817-l0ngh5qss8612uoj8f09vo4ls7o0ovdp.apps.googleusercontent.com"
+      org-gcal-client-secret "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"
+      org-gcal-fetch-file-alist '(("vugomars@gmail.com" . "~/Dropbox/Org/gcal-agenda.org")))
+\end{verbatim}
+
+\begin{verbatim}
+(after! org-gcal
+  (load! "lisp/private/+org-gcal.el"))
+\end{verbatim}
+
+\subparagraph{{\bfseries\sffamily TODO} CalDAV}
+\label{sec:org5c85ea0}
+Need to be configured, see the \href{https://github.com/dengste/org-caldav}{GitHub repo}.
+
+\begin{verbatim}
+(use-package! caldav
+  :commands (org-caldav-sync))
+\end{verbatim}
+
+\paragraph{Capture}
+\label{sec:org4551c52}
+Set capture files
+
+\begin{verbatim}
+(setq +org-capture-emails-file (expand-file-name "inbox.org" org-directory)
+      +org-capture-todo-file (expand-file-name "inbox.org" org-directory)
+      +org-capture-projects-file (expand-file-name "projects.org" org-directory))
+\end{verbatim}
+
+Let's set up some \texttt{org-capture} templates, and make them visually nice to access.
+
+\begin{verbatim}
+(use-package! doct
+  :commands (doct))
+\end{verbatim}
+
+\begin{verbatim}
+(after! org-capture
+  <<prettify-capture>>
+
+  (defun +doct-icon-declaration-to-icon (declaration)
+    "Convert :icon declaration to icon"
+    (let ((name (pop declaration))
+          (set  (intern (concat "all-the-icons-" (plist-get declaration :set))))
+          (face (intern (concat "all-the-icons-" (plist-get declaration :color))))
+          (v-adjust (or (plist-get declaration :v-adjust) 0.01)))
+      (apply set `(,name :face ,face :v-adjust ,v-adjust))))
+
+  (defun +doct-iconify-capture-templates (groups)
+    "Add declaration's :icon to each template group in GROUPS."
+    (let ((templates (doct-flatten-lists-in groups)))
+      (setq doct-templates
+            (mapcar (lambda (template)
+                      (when-let* ((props (nthcdr (if (= (length template) 4) 2 5) template))
+                                  (spec (plist-get (plist-get props :doct) :icon)))
+                        (setf (nth 1 template) (concat (+doct-icon-declaration-to-icon spec)
+                                                       "\t"
+                                                       (nth 1 template))))
+                      template)
+                    templates))))
+
+  (setq doct-after-conversion-functions '(+doct-iconify-capture-templates))
+
+  (defun set-org-capture-templates ()
+    (setq org-capture-templates
+          (doct `(("Personal todo" :keys "t"
+                   :icon ("checklist" :set "octicon" :color "green")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* TODO %?"
+                              "%i %a"))
+                  ("Personal note" :keys "n"
+                   :icon ("sticky-note-o" :set "faicon" :color "green")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* %?"
+                              "%i %a"))
+                  ("Email" :keys "e"
+                   :icon ("envelope" :set "faicon" :color "blue")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Inbox"
+                   :type entry
+                   :template ("* TODO %^{type|reply to|contact} %\\3 %? :email:"
+                              "Send an email %^{urgancy|soon|ASAP|anon|at some point|eventually} to %^{recipiant}"
+                              "about %^{topic}"
+                              "%U %i %a"))
+                  ("Interesting" :keys "i"
+                   :icon ("eye" :set "faicon" :color "lcyan")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Interesting"
+                   :type entry
+                   :template ("* [ ] %{desc}%? :%{i-type}:"
+                              "%i %a")
+                   :children (("Webpage" :keys "w"
+                               :icon ("globe" :set "faicon" :color "green")
+                               :desc "%(org-cliplink-capture) "
+                               :i-type "read:web")
+                              ("Article" :keys "a"
+                               :icon ("file-text" :set "octicon" :color "yellow")
+                               :desc ""
+                               :i-type "read:reaserch")
+                              ("Information" :keys "i"
+                               :icon ("info-circle" :set "faicon" :color "blue")
+                               :desc ""
+                               :i-type "read:info")
+                              ("Idea" :keys "I"
+                               :icon ("bubble_chart" :set "material" :color "silver")
+                               :desc ""
+                               :i-type "idea")))
+                  ("Tasks" :keys "k"
+                   :icon ("inbox" :set "octicon" :color "yellow")
+                   :file +org-capture-todo-file
+                   :prepend t
+                   :headline "Tasks"
+                   :type entry
+                   :template ("* TODO %? %^G%{extra}"
+                              "%i %a")
+                   :children (("General Task" :keys "k"
+                               :icon ("inbox" :set "octicon" :color "yellow")
+                               :extra "")
+
+                              ("Task with deadline" :keys "d"
+                               :icon ("timer" :set "material" :color "orange" :v-adjust -0.1)
+                               :extra "\nDEADLINE: %^{Deadline:}t")
+
+                              ("Scheduled Task" :keys "s"
+                               :icon ("calendar" :set "octicon" :color "orange")
+                               :extra "\nSCHEDULED: %^{Start time:}t")))
+                  ("Project" :keys "p"
+                   :icon ("repo" :set "octicon" :color "silver")
+                   :prepend t
+                   :type entry
+                   :headline "Inbox"
+                   :template ("* %{time-or-todo} %?"
+                              "%i"
+                              "%a")
+                   :file ""
+                   :custom (:time-or-todo "")
+                   :children (("Project-local todo" :keys "t"
+                               :icon ("checklist" :set "octicon" :color "green")
+                               :time-or-todo "TODO"
+                               :file +org-capture-project-todo-file)
+                              ("Project-local note" :keys "n"
+                               :icon ("sticky-note" :set "faicon" :color "yellow")
+                               :time-or-todo "%U"
+                               :file +org-capture-project-notes-file)
+                              ("Project-local changelog" :keys "c"
+                               :icon ("list" :set "faicon" :color "blue")
+                               :time-or-todo "%U"
+                               :heading "Unreleased"
+                               :file +org-capture-project-changelog-file)))
+                  ("\tCentralised project templates"
+                   :keys "o"
+                   :type entry
+                   :prepend t
+                   :template ("* %{time-or-todo} %?"
+                              "%i"
+                              "%a")
+                   :children (("Project todo"
+                               :keys "t"
+                               :prepend nil
+                               :time-or-todo "TODO"
+                               :heading "Tasks"
+                               :file +org-capture-central-project-todo-file)
+                              ("Project note"
+                               :keys "n"
+                               :time-or-todo "%U"
+                               :heading "Notes"
+                               :file +org-capture-central-project-notes-file)
+                              ("Project changelog"
+                               :keys "c"
+                               :time-or-todo "%U"
+                               :heading "Unreleased"
+                               :file +org-capture-central-project-changelog-file)))))))
+
+  (set-org-capture-templates)
+  (unless (display-graphic-p)
+    (add-hook 'server-after-make-frame-hook
+              (defun org-capture-reinitialise-hook ()
+                (when (display-graphic-p)
+                  (set-org-capture-templates)
+                  (remove-hook 'server-after-make-frame-hook
+                               #'org-capture-reinitialise-hook))))))
+\end{verbatim}
+
+It would also be nice to improve how the capture dialogue looks
+
+\begin{verbatim}
+(defun org-capture-select-template-prettier (&optional keys)
+  "Select a capture template, in a prettier way than default
+Lisp programs can force the template by setting KEYS to a string."
+  (let ((org-capture-templates
+         (or (org-contextualize-keys
+              (org-capture-upgrade-templates org-capture-templates)
+              org-capture-templates-contexts)
+             '(("t" "Task" entry (file+headline "" "Tasks")
+                "* TODO %?\n  %u\n  %a")))))
+    (if keys
+        (or (assoc keys org-capture-templates)
+            (error "No capture template referred to by \"%s\" keys" keys))
+      (org-mks org-capture-templates
+               "Select a capture template\n━━━━━━━━━━━━━━━━━━━━━━━━━"
+               "Template key: "
+               `(("q" ,(concat (all-the-icons-octicon "stop" :face 'all-the-icons-red :v-adjust 0.01) "\tAbort")))))))
+(advice-add 'org-capture-select-template :override #'org-capture-select-template-prettier)
+
+(defun org-mks-pretty (table title &optional prompt specials)
+  "Select a member of an alist with multiple keys. Prettified.
+
+TABLE is the alist which should contain entries where the car is a string.
+There should be two types of entries.
+
+1. prefix descriptions like (\"a\" \"Description\")
+   This indicates that `a' is a prefix key for multi-letter selection, and
+   that there are entries following with keys like \"ab\", \"ax\"…
+
+2. Select-able members must have more than two elements, with the first
+   being the string of keys that lead to selecting it, and the second a
+   short description string of the item.
+
+The command will then make a temporary buffer listing all entries
+that can be selected with a single key, and all the single key
+prefixes.  When you press the key for a single-letter entry, it is selected.
+When you press a prefix key, the commands (and maybe further prefixes)
+under this key will be shown and offered for selection.
+
+TITLE will be placed over the selection in the temporary buffer,
+PROMPT will be used when prompting for a key.  SPECIALS is an
+alist with (\"key\" \"description\") entries.  When one of these
+is selected, only the bare key is returned."
+  (save-window-excursion
+    (let ((inhibit-quit t)
+          (buffer (org-switch-to-buffer-other-window "*Org Select*"))
+          (prompt (or prompt "Select: "))
+          case-fold-search
+          current)
+      (unwind-protect
+          (catch 'exit
+            (while t
+              (setq-local evil-normal-state-cursor (list nil))
+              (erase-buffer)
+              (insert title "\n\n")
+              (let ((des-keys nil)
+                    (allowed-keys '("\C-g"))
+                    (tab-alternatives '("\s" "\t" "\r"))
+                    (cursor-type nil))
+                ;; Populate allowed keys and descriptions keys
+                ;; available with CURRENT selector.
+                (let ((re (format "\\`%s\\(.\\)\\'"
+                                  (if current (regexp-quote current) "")))
+                      (prefix (if current (concat current " ") "")))
+                  (dolist (entry table)
+                    (pcase entry
+                      ;; Description.
+                      (`(,(and key (pred (string-match re))) ,desc)
+                       (let ((k (match-string 1 key)))
+                         (push k des-keys)
+                         ;; Keys ending in tab, space or RET are equivalent.
+                         (if (member k tab-alternatives)
+                             (push "\t" allowed-keys)
+                           (push k allowed-keys))
+                         (insert (propertize prefix 'face 'font-lock-comment-face) (propertize k 'face 'bold) (propertize "›" 'face 'font-lock-comment-face) "  " desc "…" "\n")))
+                      ;; Usable entry.
+                      (`(,(and key (pred (string-match re))) ,desc . ,_)
+                       (let ((k (match-string 1 key)))
+                         (insert (propertize prefix 'face 'font-lock-comment-face) (propertize k 'face 'bold) "   " desc "\n")
+                         (push k allowed-keys)))
+                      (_ nil))))
+                ;; Insert special entries, if any.
+                (when specials
+                  (insert "─────────────────────────\n")
+                  (pcase-dolist (`(,key ,description) specials)
+                    (insert (format "%s   %s\n" (propertize key 'face '(bold all-the-icons-red)) description))
+                    (push key allowed-keys)))
+                ;; Display UI and let user select an entry or
+                ;; a sublevel prefix.
+                (goto-char (point-min))
+                (unless (pos-visible-in-window-p (point-max))
+                  (org-fit-window-to-buffer))
+                (let ((pressed (org--mks-read-key allowed-keys
+                                                  prompt
+                                                  (not (pos-visible-in-window-p (1- (point-max)))))))
+                  (setq current (concat current pressed))
+                  (cond
+                   ((equal pressed "\C-g") (user-error "Abort"))
+                   ;; Selection is a prefix: open a new menu.
+                   ((member pressed des-keys))
+                   ;; Selection matches an association: return it.
+                   ((let ((entry (assoc current table)))
+                      (and entry (throw 'exit entry))))
+                   ;; Selection matches a special entry: return the
+                   ;; selection prefix.
+                   ((assoc current specials) (throw 'exit current))
+                   (t (error "No entry available")))))))
+        (when buffer (kill-buffer buffer))))))
+(advice-add 'org-mks :override #'org-mks-pretty)
+\end{verbatim}
+
+The \href{file:///Users/vudangquang/.emacs.d/bin/org-capture}{org-capture bin} is rather nice, but I'd be nicer with a smaller frame, and
+no modeline.
+
+\begin{verbatim}
+(setf (alist-get 'height +org-capture-frame-parameters) 15)
+;; (alist-get 'name +org-capture-frame-parameters) "❖ Capture") ;; ATM hardcoded in other places, so changing breaks stuff
+(setq +org-capture-fn
+      (lambda ()
+        (interactive)
+        (set-window-parameter nil 'mode-line-format 'none)
+        (org-capture)))
+\end{verbatim}
+
+\paragraph{Snippet Helpers}
+\label{sec:org0cc09a9}
+I often want to set \texttt{src-block} headers, and it's a pain to:
+\begin{itemize}
+\item type them out
+\item remember what the accepted values are
+\item oh, and specifying the same language again and again
+\end{itemize}
+
+We can solve this in three steps:
+\begin{itemize}
+\item having one-letter snippets, conditioned on \texttt{(point)} being within a src header
+\item creating a nice prompt showing accepted values and the current default
+\item pre-filling the \texttt{src-block} language with the last language used
+\end{itemize}
+
+For header args, the keys I'll use are:
+\begin{itemize}
+\item \texttt{r} for \texttt{:results}
+\item \texttt{e} for \texttt{:exports}
+\item \texttt{v} for \texttt{:eval}
+\item \texttt{s} for \texttt{:session}
+\item \texttt{d} for \texttt{:dir}
+\end{itemize}
+
+\begin{verbatim}
+(defun +yas/org-src-header-p ()
+  "Determine whether `point' is within a src-block header or header-args."
+  (pcase (org-element-type (org-element-context))
+    ('src-block (< (point) ; before code part of the src-block
+                   (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                   (forward-line 1)
+                                   (point))))
+    ('inline-src-block (< (point) ; before code part of the inline-src-block
+                          (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                          (search-forward "]{")
+                                          (point))))
+    ('keyword (string-match-p "^header-args" (org-element-property :value (org-element-context))))))
+\end{verbatim}
+
+Now let's write a function we can reference in YASnippets to produce a nice
+interactive way to specify header arguments.
+
+\begin{verbatim}
+(defun +yas/org-prompt-header-arg (arg question values)
+  "Prompt the user to set ARG header property to one of VALUES with QUESTION.
+The default value is identified and indicated. If either default is selected,
+or no selection is made: nil is returned."
+  (let* ((src-block-p (not (looking-back "^#\\+property:[ \t]+header-args:.*" (line-beginning-position))))
+         (default
+           (or
+            (cdr (assoc arg
+                        (if src-block-p
+                            (nth 2 (org-babel-get-src-block-info t))
+                          (org-babel-merge-params
+                           org-babel-default-header-args
+                           (let ((lang-headers
+                                  (intern (concat "org-babel-default-header-args:"
+                                                  (+yas/org-src-lang)))))
+                             (when (boundp lang-headers) (eval lang-headers t)))))))
+            ""))
+         default-value)
+    (setq values (mapcar
+                  (lambda (value)
+                    (if (string-match-p (regexp-quote value) default)
+                        (setq default-value
+                              (concat value " "
+                                      (propertize "(default)" 'face 'font-lock-doc-face)))
+                      value))
+                  values))
+    (let ((selection (consult--read question values :default default-value)))
+      (unless (or (string-match-p "(default)$" selection)
+                  (string= "" selection))
+        selection))))
+\end{verbatim}
+
+Finally, we fetch the language information for new source blocks.
+
+Since we're getting this info, we might as well go a step further and also
+provide the ability to determine the most popular language in the buffer that
+doesn't have any \texttt{header-args} set for it (with \texttt{\#+properties}).
+
+\begin{verbatim}
+(defun +yas/org-src-lang ()
+  "Try to find the current language of the src/header at `point'.
+Return nil otherwise."
+  (let ((context (org-element-context)))
+    (pcase (org-element-type context)
+      ('src-block (org-element-property :language context))
+      ('inline-src-block (org-element-property :language context))
+      ('keyword (when (string-match "^header-args:\\([^ ]+\\)" (org-element-property :value context))
+                  (match-string 1 (org-element-property :value context)))))))
+
+(defun +yas/org-last-src-lang ()
+  "Return the language of the last src-block, if it exists."
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-backward "^[ \t]*#\\+begin_src" nil t)
+      (org-element-property :language (org-element-context)))))
+
+(defun +yas/org-most-common-no-property-lang ()
+  "Find the lang with the most source blocks that has no global header-args, else nil."
+  (let (src-langs header-langs)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+begin_src" nil t)
+        (push (+yas/org-src-lang) src-langs))
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+property: +header-args" nil t)
+        (push (+yas/org-src-lang) header-langs)))
+
+    (setq src-langs
+          (mapcar #'car
+                  ;; sort alist by frequency (desc.)
+                  (sort
+                   ;; generate alist with form (value . frequency)
+                   (cl-loop for (n . m) in (seq-group-by #'identity src-langs)
+                            collect (cons n (length m)))
+                   (lambda (a b) (> (cdr a) (cdr b))))))
+
+    (car (cl-set-difference src-langs header-langs :test #'string=))))
+\end{verbatim}
+
+\paragraph{Translate capital keywords to lower case}
+\label{sec:org1128ecb}
+Everyone used to use \texttt{\#+CAPITAL} keywords. Then people realised that \texttt{\#+lowercase}
+is actually both marginally easier and visually nicer, so now the capital
+version is just used in the manual.
+
+\begin{quote}
+Org is standardized on lower case. Uppercase is used in the manual as a poor
+man's bold, and supported for historical reasons. --- \href{https://orgmode.org/list/87tuuw3n15.fsf@nicolasgoaziou.fr}{Nicolas Goaziou}
+\end{quote}
+
+\begin{verbatim}
+(defun +org-syntax-convert-keyword-case-to-lower ()
+  "Convert all #+KEYWORDS to #+keywords."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (let ((count 0)
+          (case-fold-search nil))
+      (while (re-search-forward "^[ \t]*#\\+[A-Z_]+" nil t)
+        (unless (s-matches-p "RESULTS" (match-string 0))
+          (replace-match (downcase (match-string 0)) t)
+          (setq count (1+ count))))
+      (message "Replaced %d occurances" count))))
+\end{verbatim}
+
+\paragraph{Org notifier}
+\label{sec:orgb7ebb14}
+Add support for \href{https://github.com/akhramov/org-wild-notifier.el}{\texttt{org-wild-notifier}}.
+
+\begin{verbatim}
+(use-package! org-wild-notifier
+  :hook (org-load . org-wild-notifier-mode)
+  :config
+  (setq org-wild-notifier-alert-time '(60 30)))
+\end{verbatim}
+
+\paragraph{Org menu}
+\label{sec:org37ee736}
+
+\begin{verbatim}
+(use-package! org-menu
+  :commands (org-menu)
+  :init
+  (map! :localleader
+        :map org-mode-map
+        :desc "Org menu" "M" #'org-menu))
+\end{verbatim}
+
+\paragraph{LSP in \texttt{src} blocks}
+\label{sec:orgc2786c5}
+
+\begin{verbatim}
+(when (and (modulep! :tools lsp) (not (modulep! :tools lsp +eglot)))
+  (cl-defmacro +lsp-org-babel-enable (lang)
+    "Support LANG in org source code block."
+    ;; (setq centaur-lsp 'lsp-mode)
+    (cl-check-type lang stringp)
+    (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+           (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+      `(progn
+         (defun ,intern-pre (info)
+           (let ((file-name (->> info caddr (alist-get :file))))
+             (unless file-name
+               (setq file-name (make-temp-file "babel-lsp-")))
+             (setq buffer-file-name file-name)
+             (lsp-deferred)))
+         (put ',intern-pre 'function-documentation
+              (format "Enable lsp-mode in the buffer of org source block (%s)."
+                      (upcase ,lang)))
+         (if (fboundp ',edit-pre)
+             (advice-add ',edit-pre :after ',intern-pre)
+           (progn
+             (defun ,edit-pre (info)
+               (,intern-pre info))
+             (put ',edit-pre 'function-documentation
+                  (format "Prepare local buffer environment for org source block (%s)."
+                          (upcase ,lang))))))))
+
+  (defvar +org-babel-lang-list
+    '("go" "python" "ipython" "bash" "sh"))
+
+  (dolist (lang +org-babel-lang-list)
+    (eval `(+lsp-org-babel-enable ,lang))))
+\end{verbatim}
+
+\subsubsection{Custom links}
+\label{sec:org2d7bb51}
+\paragraph{Sub-figures}
+\label{sec:orgcd4606c}
+This defines a new link type \texttt{subfig} to enable exporting sub-figures to \LaTeX{},
+taken form \href{https://orgmode.org/list/87mty1an66.fsf@posteo.net/}{``Export subfigures to \LaTeX{} (and HTML)''}.
+
+\begin{verbatim}
+(org-link-set-parameters
+ "subfig"
+ :follow (lambda (file) (find-file file))
+ :face '(:foreground "chocolate" :weight bold :underline t)
+ :display 'full
+ :export
+ (lambda (file desc backend)
+   (when (eq backend 'latex)
+     (if (string-match ">(\\(.+\\))" desc)
+         (concat "\\begin{subfigure}[b]"
+                 "\\caption{" (replace-regexp-in-string "\s+>(.+)" "" desc) "}"
+                 "\\includegraphics" "[" (match-string 1 desc) "]" "{" file "}" "\\end{subfigure}")
+       (format "\\begin{subfigure}\\includegraphics{%s}\\end{subfigure}" desc file)))))
+\end{verbatim}
+
+\paragraph{\LaTeX{} inline markup}
+\label{sec:org2997636}
+Needs to make a ?, with this \href{https://orgmode.org/worg/org-tutorials/org-latex-export.html}{hack} you can write
+\texttt{[[latex:textsc][Some text]]}.
+
+\begin{verbatim}
+(org-add-link-type
+ "latex" nil
+ (lambda (path desc format)
+   (cond
+    ((eq format 'html)
+     (format "<span class=\"%s\">%s</span>" path desc))
+    ((eq format 'latex)
+     (format "\\%s{%s}" path desc)))))
+\end{verbatim}
+
+\subsubsection{Visuals}
+\label{sec:orgfb71cac}
+Here I try to do two things: improve the styling of the various documents, via
+font changes etc., and also propagate colours from the current theme.
+
+\paragraph{Font display}
+\label{sec:org555af77}
+\subparagraph{Headings}
+\label{sec:orgb5d650c}
+Let's make the title and the headings a bit bigger:
+
+\begin{verbatim}
+(custom-set-faces!
+  '(org-document-title :height 1.2))
+
+(custom-set-faces!
+  '(outline-1 :weight extra-bold :height 1.25)
+  '(outline-2 :weight bold :height 1.15)
+  '(outline-3 :weight bold :height 1.12)
+  '(outline-4 :weight semi-bold :height 1.09)
+  '(outline-5 :weight semi-bold :height 1.06)
+  '(outline-6 :weight semi-bold :height 1.03)
+  '(outline-8 :weight semi-bold)
+  '(outline-9 :weight semi-bold))
+\end{verbatim}
+
+\subparagraph{Deadlines}
+\label{sec:orgf852ef0}
+It seems reasonable to have deadlines in the error face when they're passed.
+
+\begin{verbatim}
+(setq org-agenda-deadline-faces
+      '((1.001 . error)
+        (1.000 . org-warning)
+        (0.500 . org-upcoming-deadline)
+        (0.000 . org-upcoming-distant-deadline)))
+\end{verbatim}
+
+\subparagraph{Font styling}
+\label{sec:orgb16dd84}
+We can then have quote blocks stand out a bit more by making them \emph{italic}.
+
+\begin{verbatim}
+(setq org-fontify-quote-and-verse-blocks t)
+\end{verbatim}
+
+While \texttt{org-hide-emphasis-markers} is very nice, it can sometimes make edits which
+occur at the border a bit more fiddley. We can improve this situation without
+sacrificing visual amenities with the \texttt{org-appear} package.
+
+\begin{verbatim}
+(use-package! org-appear
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-appear-autoemphasis t
+        org-appear-autosubmarkers t
+        org-appear-autolinks nil)
+  ;; for proper first-time setup, `org-appear--set-elements'
+  ;; needs to be run after other hooks have acted.
+  (run-at-time nil nil #'org-appear--set-elements))
+\end{verbatim}
+
+\subparagraph{Inline blocks}
+\label{sec:org6dc4c66}
+
+\begin{verbatim}
+(setq org-inline-src-prettify-results '("⟨" . "⟩")
+      doom-themes-org-fontify-special-tags nil)
+\end{verbatim}
+
+\paragraph{Image previews}
+\label{sec:org9f3ca76}
+
+\begin{verbatim}
+(defvar +org-responsive-image-percentage 0.4)
+(defvar +org-responsive-image-width-limits '(400 . 700)) ;; '(min-width . max-width)
+
+(defun +org--responsive-image-h ()
+  (when (eq major-mode 'org-mode)
+    (setq org-image-actual-width
+          (max (car +org-responsive-image-width-limits)
+               (min (cdr +org-responsive-image-width-limits)
+                    (truncate (* (window-pixel-width) +org-responsive-image-percentage)))))))
+
+(add-hook 'window-configuration-change-hook #'+org--responsive-image-h)
+\end{verbatim}
+
+\paragraph{Org Modern}
+\label{sec:org1497f92}
+
+\begin{verbatim}
+(use-package! org-modern
+  :hook (org-mode . org-modern-mode)
+  :config
+  (setq org-modern-star '("◉" "○" "◈" "◇" "✳" "◆" "✸" "▶")
+        org-modern-table-vertical 5
+        org-modern-table-horizontal 2
+        org-modern-list '((43 . "➤") (45 . "–") (42 . "•"))
+        org-modern-footnote (cons nil (cadr org-script-display))
+        org-modern-priority t
+        org-modern-block t
+        org-modern-block-fringe nil
+        org-modern-horizontal-rule t
+        org-modern-keyword
+        '((t                     . t)
+          ("title"               . "𝙏")
+          ("subtitle"            . "𝙩")
+          ("author"              . "𝘼")
+          ("email"               . "@")
+          ("date"                . "𝘿")
+          ("lastmod"             . "✎")
+          ("property"            . "☸")
+          ("options"             . "⌥")
+          ("startup"             . "⏻")
+          ("macro"               . "𝓜")
+          ("bind"                . #("" 0 1 (display (raise -0.1))))
+          ("bibliography"        . "")
+          ("print_bibliography"  . #("" 0 1 (display (raise -0.1))))
+          ("cite_export"         . "⮭")
+          ("print_glossary"      . #("ᴬᶻ" 0 1 (display (raise -0.1))))
+          ("glossary_sources"    . #("" 0 1 (display (raise -0.14))))
+          ("export_file_name"    . "⇒")
+          ("include"             . "⇤")
+          ("setupfile"           . "⇐")
+          ("html_head"           . "🅷")
+          ("html"                . "🅗")
+          ("latex_class"         . "🄻")
+          ("latex_class_options" . #("🄻" 1 2 (display (raise -0.14))))
+          ("latex_header"        . "🅻")
+          ("latex_header_extra"  . "🅻⁺")
+          ("latex"               . "🅛")
+          ("beamer_theme"        . "🄱")
+          ("beamer_color_theme"  . #("🄱" 1 2 (display (raise -0.12))))
+          ("beamer_font_theme"   . "🄱𝐀")
+          ("beamer_header"       . "🅱")
+          ("beamer"              . "🅑")
+          ("attr_latex"          . "🄛")
+          ("attr_html"           . "🄗")
+          ("attr_org"            . "⒪")
+          ("name"                . "⁍")
+          ("header"              . "›")
+          ("caption"             . "☰")
+          ("RESULTS"             . "🠶")
+          ("language"            . "𝙇")
+          ("hugo_base_dir"       . "𝐇")
+          ("latex_compiler"      . "⟾")
+          ("results"             . "🠶")
+          ("filetags"            . "#")
+          ("created"             . "⏱")
+          ("export_select_tags"  . "✔")
+          ("export_exclude_tags" . "❌")))
+
+  ;; Change faces
+  (custom-set-faces! '(org-modern-tag :inherit (region org-modern-label)))
+  (custom-set-faces! '(org-modern-statistics :inherit org-checkbox-statistics-todo)))
+\end{verbatim}
+
+
+We’ll bind this to \texttt{O} on the \texttt{org-mode} localleader, and manually apply a \href{https://github.com/Townk/org-ol-tree/pull/13}{PR
+recognising the pgtk window system}.
+
+\begin{verbatim}
+(use-package! org-ol-tree
+  :commands org-ol-tree
+  :config
+  (setq org-ol-tree-ui-icon-set
+        (if (and (display-graphic-p)
+                 (fboundp 'all-the-icons-material))
+            'all-the-icons
+          'unicode))
+  (org-ol-tree-ui--update-icon-set))
+
+(map! :localleader
+      :map org-mode-map
+      :desc "Outline" "O" #'org-ol-tree)
+\end{verbatim}
+
+\paragraph{List bullet sequence}
+\label{sec:orgd8fe721}
+I think it makes sense to have list bullets change with depth
+
+\begin{verbatim}
+(setq org-list-demote-modify-bullet
+      '(("+"  . "-")
+        ("-"  . "+")
+        ("*"  . "+")
+        ("1." . "a.")))
+\end{verbatim}
+
+\paragraph{Symbols}
+\label{sec:orgedd713d}
+
+\begin{verbatim}
+;; Org styling, hide markup etc.
+(setq org-hide-emphasis-markers t
+      org-pretty-entities t
+      org-ellipsis " ↩"
+      org-hide-leading-stars t)
+      ;; org-priority-highest ?A
+      ;; org-priority-lowest ?E
+      ;; org-priority-faces
+      ;; '((?A . 'all-the-icons-red)
+      ;;   (?B . 'all-the-icons-orange)
+      ;;   (?C . 'all-the-icons-yellow)
+      ;;   (?D . 'all-the-icons-green)
+      ;;   (?E . 'all-the-icons-blue)))
+\end{verbatim}
+
+\paragraph{\LaTeX{} fragments}
+\label{sec:orgaef5fb3}
+\subparagraph{Prettier highlighting}
+\label{sec:org8ccea06}
+First off, we want those fragments to look good.
+
+\begin{verbatim}
+(setq org-highlight-latex-and-related '(native script entities))
+
+(require 'org-src)
+(add-to-list 'org-src-block-faces '("latex" (:inherit default :extend t)))
+\end{verbatim}
+
+\subparagraph{Prettier rendering}
+\label{sec:orgbf8ad09}
+Since we can, instead of making the background color match the \texttt{default} face,
+let's make it transparent.
+
+\begin{verbatim}
+(setq org-format-latex-options
+      (plist-put org-format-latex-options :background "Transparent"))
+
+;; Can be dvipng, dvisvgm, imagemagick
+(setq org-preview-latex-default-process 'dvisvgm)
+
+;; Define a function to set the format latex scale (to be reused in hooks)
+(defun +org-format-latex-set-scale (scale)
+  (setq org-format-latex-options (plist-put org-format-latex-options :scale scale)))
+
+;; Set the default scale
+(+org-format-latex-set-scale 1.4)
+\end{verbatim}
+
+\subparagraph{Better equation numbering}
+\label{sec:org926b7f3}
+Numbered equations all have (1) as the number for fragments with vanilla
+\texttt{org-mode}. This code (from \href{https://github.com/jkitchin/scimax}{scimax}) injects the correct numbers into the previews,
+so they look good.
+
+\begin{quote}
+This hack is not properly working right now!, it seems to work only with \texttt{align}
+blocks. \textbf{NEEDS INVESTIGATION.}
+\end{quote}
+
+\begin{verbatim}
+(defun +parse-the-fun (str)
+  "Parse the LaTeX environment STR.
+Return an AST with newlines counts in each level."
+  (let (ast)
+    (with-temp-buffer
+      (insert str)
+      (goto-char (point-min))
+      (while (re-search-forward
+              (rx "\\"
+                  (group (or "\\" "begin" "end" "nonumber"))
+                  (zero-or-one "{" (group (zero-or-more not-newline)) "}"))
+              nil t)
+        (let ((cmd (match-string 1))
+              (env (match-string 2)))
+          (cond ((string= cmd "begin")
+                 (push (list :env (intern env)) ast))
+                ((string= cmd "\\")
+                 (let ((curr (pop ast)))
+                   (push (plist-put curr :newline (1+ (or (plist-get curr :newline) 0))) ast)))
+                ((string= cmd "nonumber")
+                 (let ((curr (pop ast)))
+                   (push (plist-put curr :nonumber (1+ (or (plist-get curr :nonumber) 0))) ast)))
+                ((string= cmd "end")
+                 (let ((child (pop ast))
+                       (parent (pop ast)))
+                   (push (plist-put parent :childs (cons child (plist-get parent :childs))) ast)))))))
+    (plist-get (car ast) :childs)))
+
+(defun +scimax-org-renumber-environment (orig-func &rest args)
+  "A function to inject numbers in LaTeX fragment previews."
+  (let ((results '())
+        (counter -1))
+    (setq results
+          (cl-loop for (begin . env) in
+                   (org-element-map (org-element-parse-buffer) 'latex-environment
+                     (lambda (env)
+                       (cons
+                        (org-element-property :begin env)
+                        (org-element-property :value env))))
+                   collect
+                   (cond
+                    ((and (string-match "\\\\begin{equation}" env)
+                          (not (string-match "\\\\tag{" env)))
+                     (cl-incf counter)
+                     (cons begin counter))
+                    ((string-match "\\\\begin{align}" env)
+                     (cl-incf counter)
+                     (let ((p (car (+parse-the-fun env))))
+                       ;; Parse the `env', count new lines in the align env as equations, unless
+                       (cl-incf counter (- (or (plist-get p :newline) 0)
+                                           (or (plist-get p :nonumber) 0))))
+                     (cons begin counter))
+                    (t
+                     (cons begin nil)))))
+    (when-let ((number (cdr (assoc (point) results))))
+      (setf (car args)
+            (concat
+             (format "\\setcounter{equation}{%s}\n" number)
+             (car args)))))
+  (apply orig-func args))
+
+(defun +scimax-toggle-latex-equation-numbering (&optional enable)
+  "Toggle whether LaTeX fragments are numbered."
+  (interactive)
+  (if (or enable (not (get '+scimax-org-renumber-environment 'enabled)))
+      (progn
+        (advice-add 'org-create-formula-image :around #'+scimax-org-renumber-environment)
+        (put '+scimax-org-renumber-environment 'enabled t)
+        (message "LaTeX numbering enabled."))
+    (advice-remove 'org-create-formula-image #'+scimax-org-renumber-environment)
+    (put '+scimax-org-renumber-environment 'enabled nil)
+    (message "LaTeX numbering disabled.")))
+
+(defun +scimax-org-inject-latex-fragment (orig-func &rest args)
+  "Advice function to inject latex code before and/or after the equation in a latex fragment.
+You can use this to set \\mathversion{bold} for example to make
+it bolder. The way it works is by defining
+:latex-fragment-pre-body and/or :latex-fragment-post-body in the
+variable `org-format-latex-options'. These strings will then be
+injected before and after the code for the fragment before it is
+made into an image."
+  (setf (car args)
+        (concat
+         (or (plist-get org-format-latex-options :latex-fragment-pre-body) "")
+         (car args)
+         (or (plist-get org-format-latex-options :latex-fragment-post-body) "")))
+  (apply orig-func args))
+
+(defun +scimax-toggle-inject-latex ()
+  "Toggle whether you can insert latex in fragments."
+  (interactive)
+  (if (not (get '+scimax-org-inject-latex-fragment 'enabled))
+      (progn
+        (advice-add 'org-create-formula-image :around #'+scimax-org-inject-latex-fragment)
+        (put '+scimax-org-inject-latex-fragment 'enabled t)
+        (message "Inject latex enabled"))
+    (advice-remove 'org-create-formula-image #'+scimax-org-inject-latex-fragment)
+    (put '+scimax-org-inject-latex-fragment 'enabled nil)
+    (message "Inject latex disabled")))
+
+;; Enable renumbering by default
+(+scimax-toggle-latex-equation-numbering t)
+\end{verbatim}
+
+\subparagraph{Fragtog}
+\label{sec:org25bd34e}
+Hook \texttt{org-fragtog-mode} to \texttt{org-mode}.
+
+\begin{verbatim}
+(use-package! org-fragtog
+  :hook (org-mode . org-fragtog-mode))
+\end{verbatim}
+
+\paragraph{Org plot}
+\label{sec:orge955263}
+We can use some variables in \texttt{org-plot} to use the current doom theme
+colors.
+
+\begin{verbatim}
+(after! org-plot
+  (defun org-plot/generate-theme (_type)
+    "Use the current Doom theme colours to generate a GnuPlot preamble."
+    (format "
+fgt = \"textcolor rgb '%s'\"  # foreground text
+fgat = \"textcolor rgb '%s'\" # foreground alt text
+fgl = \"linecolor rgb '%s'\"  # foreground line
+fgal = \"linecolor rgb '%s'\" # foreground alt line
+
+# foreground colors
+set border lc rgb '%s'
+# change text colors of  tics
+set xtics @fgt
+set ytics @fgt
+# change text colors of labels
+set title @fgt
+set xlabel @fgt
+set ylabel @fgt
+# change a text color of key
+set key @fgt
+
+# line styles
+set linetype 1 lw 2 lc rgb '%s' # red
+set linetype 2 lw 2 lc rgb '%s' # blue
+set linetype 3 lw 2 lc rgb '%s' # green
+set linetype 4 lw 2 lc rgb '%s' # magenta
+set linetype 5 lw 2 lc rgb '%s' # orange
+set linetype 6 lw 2 lc rgb '%s' # yellow
+set linetype 7 lw 2 lc rgb '%s' # teal
+set linetype 8 lw 2 lc rgb '%s' # violet
+
+# palette
+set palette maxcolors 8
+set palette defined ( 0 '%s',\
+1 '%s',\
+2 '%s',\
+3 '%s',\
+4 '%s',\
+5 '%s',\
+6 '%s',\
+7 '%s' )
+"
+            (doom-color 'fg)
+            (doom-color 'fg-alt)
+            (doom-color 'fg)
+            (doom-color 'fg-alt)
+            (doom-color 'fg)
+            ;; colours
+            (doom-color 'red)
+            (doom-color 'blue)
+            (doom-color 'green)
+            (doom-color 'magenta)
+            (doom-color 'orange)
+            (doom-color 'yellow)
+            (doom-color 'teal)
+            (doom-color 'violet)
+            ;; duplicated
+            (doom-color 'red)
+            (doom-color 'blue)
+            (doom-color 'green)
+            (doom-color 'magenta)
+            (doom-color 'orange)
+            (doom-color 'yellow)
+            (doom-color 'teal)
+            (doom-color 'violet)))
+
+  (defun org-plot/gnuplot-term-properties (_type)
+    (format "background rgb '%s' size 1050,650"
+            (doom-color 'bg)))
+
+  (setq org-plot/gnuplot-script-preamble #'org-plot/generate-theme
+        org-plot/gnuplot-term-extra #'org-plot/gnuplot-term-properties))
+\end{verbatim}
+
+\paragraph{Large tables}
+\label{sec:org61a4434}
+Use \emph{\href{https://github.com/misohena/phscroll}{Partial Horizontal Scroll}} to display long tables without breaking them.
+
+\begin{verbatim}
+(use-package! org-phscroll
+  :hook (org-mode . org-phscroll-mode))
+\end{verbatim}
+
+\subsubsection{Bibliography}
+\label{sec:org9361498}
+\paragraph{BibTeX}
+\label{sec:orgd6697ee}
+
+\begin{verbatim}
+(setq bibtex-completion-bibliography +my/biblio-libraries-list
+      bibtex-completion-library-path +my/biblio-storage-list
+      bibtex-completion-notes-path +my/biblio-notes-path
+      bibtex-completion-notes-template-multiple-files "* ${author-or-editor}, ${title}, ${journal}, (${year}) :${=type=}: \n\nSee [[cite:&${=key=}]]\n"
+      bibtex-completion-additional-search-fields '(keywords)
+      bibtex-completion-display-formats
+      '((article       . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${journal:40}")
+        (inbook        . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} Chapter ${chapter:32}")
+        (incollection  . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${booktitle:40}")
+        (inproceedings . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*} ${booktitle:40}")
+        (t             . "${=has-pdf=:1}${=has-note=:1} ${year:4} ${author:36} ${title:*}"))
+      bibtex-completion-pdf-open-function
+      (lambda (fpath)
+        (call-process "open" nil 0 nil fpath)))
+\end{verbatim}
+
+\paragraph{Org-bib}
+\label{sec:org8962c4b}
+A mode to work with annotated bibliography in Org-Mode. See \href{https://github.com/rougier/org-bib-mode}{the repo} for an
+example.
+
+\begin{verbatim}
+(use-package! org-bib
+  :commands (org-bib-mode))
+\end{verbatim}
+
+\paragraph{Org-cite}
+\label{sec:org776c3a3}
+
+\begin{verbatim}
+(after! oc
+  (setq org-cite-csl-styles-dir +my/biblio-styles-path)
+        ;; org-cite-global-bibliography +my/biblio-libraries-list)
+
+  (defun +org-ref-to-org-cite ()
+    "Simple conversion of org-ref citations to org-cite syntax."
+    (interactive)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "\\[cite\\(.*\\):\\([^]]*\\)\\]" nil t)
+        (let* ((old (substring (match-string 0) 1 (1- (length (match-string 0)))))
+               (new (s-replace "&" "@" old)))
+          (message "Replaced citation %s with %s" old new)
+          (replace-match new))))))
+\end{verbatim}
+
+\paragraph{Citar}
+\label{sec:org773cb54}
+
+\begin{verbatim}
+(after! citar
+  (setq citar-library-paths +my/biblio-storage-list
+        citar-notes-paths  (list +my/biblio-notes-path)
+        citar-bibliography  +my/biblio-libraries-list
+        citar-symbol-separator "  ")
+
+  (when (display-graphic-p)
+    (setq citar-symbols
+          `((file ,(all-the-icons-octicon "file-pdf"      :face 'error) . " ")
+            (note ,(all-the-icons-octicon "file-text"     :face 'warning) . " ")
+            (link ,(all-the-icons-octicon "link-external" :face 'org-link) . " ")))))
+
+(use-package! citar-org-roam
+  :after citar org-roam
+  :no-require
+  :config (citar-org-roam-mode)
+  :init
+  ;; Modified form: https://jethrokuan.github.io/org-roam-guide/
+  (defun +org-roam-node-from-cite (entry-key)
+    (interactive (list (citar-select-ref)))
+    (let ((title (citar-format--entry
+                  "${author editor} (${date urldate}) :: ${title}"
+                  (citar-get-entry entry-key))))
+      (org-roam-capture- :templates
+                         '(("r" "reference" plain
+                            "%?"
+                            :if-new (file+head "references/${citekey}.org"
+                                               ":properties:
+:roam_refs: [cite:@${citekey}]
+:end:
+#+title: ${title}\n")
+                            :immediate-finish t
+                            :unnarrowed t))
+                         :info (list :citekey entry-key)
+                         :node (org-roam-node-create :title title)
+                         :props '(:finalize find-file)))))
+\end{verbatim}
+
+\subsubsection{Exporting}
+\label{sec:org4855176}
+\paragraph{General settings}
+\label{sec:orge9627a1}
+By default, Org only exports the first three levels of headings as \emph{headings}, the
+rest is considered as paragraphs. Let's increase this to 5 levels.
+
+\begin{verbatim}
+(setq org-export-headline-levels 5)
+\end{verbatim}
+
+Let's make use of the \texttt{:ignore:} tag from \texttt{ox-extra}, which provides a way to ignore
+exporting a heading, while exporting the content residing under it (different
+from \texttt{:noexport:}).
+
+\begin{verbatim}
+(require 'ox-extra)
+(ox-extras-activate '(ignore-headlines))
+\end{verbatim}
+
+\begin{verbatim}
+(setq org-export-creator-string
+      (format "Made with Emacs %s and Org %s" emacs-version (org-release)))
+\end{verbatim}
+
+\paragraph{\LaTeX{} export}
+\label{sec:orgf4b9d5a}
+\subparagraph{Compiling}
+\label{sec:orgb205207}
+
+\begin{verbatim}
+;; `org-latex-compilers' contains a list of possible values for the `%latex' argument.
+(setq org-latex-pdf-process
+      '("latexmk -shell-escape -pdf -quiet -f -%latex -interaction=nonstopmode -output-directory=%o %f"))
+\end{verbatim}
+
+\subparagraph{Org \LaTeX{} packages}
+\label{sec:org552ff4f}
+
+\begin{verbatim}
+;; 'svg' package depends on inkscape, imagemagik and ghostscript
+(when (+all (mapcar 'executable-find '("inkscape" "magick" "gs")))
+  (add-to-list 'org-latex-packages-alist '("" "svg")))
+
+(add-to-list 'org-latex-packages-alist '("svgnames" "xcolor"))
+(add-to-list 'org-latex-packages-alist '("" "fontspec")) ;; for xelatex
+(add-to-list 'org-latex-packages-alist '("utf8" "inputenc"))
+\end{verbatim}
+
+\subparagraph{Export PDFs with syntax highlighting}
+\label{sec:org540d88f}
+This is for code syntax highlighting in export. You need to use \texttt{-shell-escape}
+with latex, and install the \texttt{python-pygments} package.
+
+\begin{verbatim}
+;; Should be configured per document, as a local variable
+;; (setq org-latex-listings 'minted)
+;; (add-to-list 'org-latex-packages-alist '("" "minted"))
+
+;; Default `minted` options, can be overwritten in file/dir locals
+(setq org-latex-minted-options
+      '(("frame"         "lines")
+        ("fontsize"      "\\footnotesize")
+        ("tabsize"       "2")
+        ("breaklines"    "true")
+        ("breakanywhere" "true") ;; break anywhere, no just on spaces
+        ("style"         "default")
+        ("bgcolor"       "GhostWhite")
+        ("linenos"       "true")))
+
+;; Link some org-mode blocks languages to lexers supported by minted
+;; via (pygmentize), you can see supported lexers by running this command
+;; in a terminal: `pygmentize -L lexers'
+(dolist (pair '((ipython    "python")
+                (jupyter    "python")
+                (scheme     "scheme")
+                (lisp-data  "lisp")
+                (conf-unix  "unixconfig")
+                (conf-space "unixconfig")
+                (authinfo   "unixconfig")
+                (gdb-script "unixconfig")
+                (conf-toml  "yaml")
+                (conf       "ini")
+                (gitconfig  "ini")
+                (systemd    "ini")))
+  (unless (member pair org-latex-minted-langs)
+    (add-to-list 'org-latex-minted-langs pair)))
+\end{verbatim}
+
+\subparagraph{Class templates}
+\label{sec:org8902137}
+
+\begin{verbatim}
+(after! ox-latex
+  (add-to-list
+   'org-latex-classes
+   '("scr-article"
+     "\\documentclass{scrartcl}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("lettre"
+     "\\documentclass{lettre}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("blank"
+     "[NO-DEFAULT-PACKAGES]\n[NO-PACKAGES]\n[EXTRA]"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("IEEEtran"
+     "\\documentclass{IEEEtran}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("ieeeconf"
+     "\\documentclass{ieeeconf}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("sagej"
+     "\\documentclass{sagej}"
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis"
+     "\\documentclass[11pt]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}")))
+
+  (add-to-list
+   'org-latex-classes
+   '("thesis-fr"
+     "\\documentclass[french,12pt,a4paper]{book}"
+     ("\\chapter{%s}"       . "\\chapter*{%s}")
+     ("\\section{%s}"       . "\\section*{%s}")
+     ("\\subsection{%s}"    . "\\subsection*{%s}")
+     ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+     ("\\paragraph{%s}"     . "\\paragraph*{%s}"))))
+
+(setq org-latex-default-class "article")
+
+;; org-latex-tables-booktabs t
+;; org-latex-reference-command "\\cref{%s}")
+\end{verbatim}
+
+\subparagraph{Export multi-files Org documents}
+\label{sec:org8732a9a}
+Let's say we have a multi-files document, with \texttt{main.org} as the entry point.
+Supposing a document with a structure like this:
+
+\begin{figure}[htbp]
+\centering
+\includesvg[width=0.55\linewidth]{assets/multi-files-org}
+\caption{Example of a multi-files document structure}
+\end{figure}
+
+Files \texttt{intro.org}, \texttt{chap1.org}, \ldots{} are included in \texttt{main.org} using the Org command
+. In such a setup, we will spend most of our time
+writing in a chapter files, and not the \texttt{main.org}, where when want to export the
+document, we would need to open the top-level file \texttt{main.org} before exporting.
+
+A quick solution is \textbf{to admit the following convention}:
+
+\begin{quote}
+If a file named \texttt{main.org} is present beside any other Org file, it should be
+considered as the entry point; and whenever we export to PDF (from any of the
+Org files like: \texttt{intro.org}, \texttt{chap1.org}, \ldots{}), we automatically jump to the
+\texttt{main.org}, and run the export there.
+\end{quote}
+
+This can be achieved by adding an Emacs-Lisp \emph{advice} around the
+\texttt{(org-latex-export-to-pdf)} to switch to \texttt{main.org} (if it exists) before
+running the export.
+
+You can also set the variable \texttt{+org-export-to-pdf-main-file} to the main file, in
+\texttt{.dir-locals.el} or as a file local variable.
+
+\begin{verbatim}
+(defvar +org-export-to-pdf-main-file nil
+  "The main (entry point) Org file for a multi-files document.")
+
+(advice-add
+ 'org-latex-export-to-pdf :around
+ (lambda (orig-fn &rest orig-args)
+   (message
+    "PDF exported to: %s."
+    (let ((main-file (or (bound-and-true-p +org-export-to-pdf-main-file) "main.org")))
+      (if (file-exists-p (expand-file-name main-file))
+          (with-current-buffer (find-file-noselect main-file)
+            (apply orig-fn orig-args))
+        (apply orig-fn orig-args))))))
+\end{verbatim}
+
+\paragraph{Hugo}
+\label{sec:org000614d}
+Update files with last modified date, when \texttt{\#+lastmod:} is available
+
+\begin{verbatim}
+(setq time-stamp-active t
+      time-stamp-start  "#\\+lastmod:[ \t]*"
+      time-stamp-end    "$"
+      time-stamp-format "%04Y-%02m-%02d")
+
+(add-hook 'before-save-hook 'time-stamp nil)
+(setq org-hugo-auto-set-lastmod t)
+\end{verbatim}
+
+\subsection{Text editing}
+\label{sec:org28656cb}
+\subsubsection{Plain text}
+\label{sec:org3de50bb}
+It's nice to see ANSI color codes displayed. However, until Emacs 28 it's not
+possible to do this without modifying the buffer, so let's condition this block
+on that.
+
+\begin{verbatim}
+(after! text-mode
+  (add-hook! 'text-mode-hook
+    (unless (derived-mode-p 'org-mode)
+      ;; Apply ANSI color codes
+      (with-silent-modifications
+        (ansi-color-apply-on-region (point-min) (point-max) t)))))
+\end{verbatim}
+
+\subsubsection{Academic phrases}
+\label{sec:org76586fa}
+When writing your academic paper, you might get stuck trying to find the right
+phrase that captures your intention. This package tries to alleviate that
+problem by presenting you with a list of phrases organized by the topic or by
+the paper section that you are writing. This package has around 600 phrases so
+far.
+
+This is based on the book titled ``English for Writing Research - Papers Useful
+Phrases''.
+
+\begin{verbatim}
+(use-package! academic-phrases
+  :commands (academic-phrases
+             academic-phrases-by-section))
+\end{verbatim}
+
+\subsubsection{Yanking multi-lines paragraphs}
+\label{sec:org6ccbc8c}
+
+\begin{verbatim}
+(defun +helper-paragraphized-yank ()
+  "Copy, then remove newlines and Org styling (/*_~)."
+  (interactive)
+  (copy-region-as-kill nil nil t)
+  (with-temp-buffer
+    (yank)
+    ;; Remove newlines, and Org styling (/*_~)
+    (goto-char (point-min))
+    (let ((case-fold-search nil))
+      (while (re-search-forward "[\n/*_~]" nil t)
+        (replace-match (if (s-matches-p (match-string 0) "\n") " " "") t)))
+    (kill-region (point-min) (point-max))))
+
+(map! :localleader
+      :map (org-mode-map markdown-mode-map latex-mode-map text-mode-map)
+      :desc "Paragraphized yank" "y" #'+helper-paragraphized-yank)
+\end{verbatim}
+
+\section{Other Config}
+\label{sec:org3658b12}
+\subsection{Rust format}
+\label{sec:org16bcf8d}
+For Rust code base, the file \texttt{\$HOME/.rustfmt.toml} contains the global format
+settings, I like to set it to:
+
+\begin{verbatim}
+# Rust edition 2021
+edition = "2021"
+
+# Use Unix style newlines, with 2 spaces tabulation.
+hard_tabs = false
+
+# Make one line functions in a single line
+fn_single_line = true
+
+# Format strings
+format_strings = true
+
+# Increase the max line width
+max_width = 120
+
+# Merge nested imports
+merge_imports = true
+
+# Enum and Struct alignement
+enum_discrim_align_threshold = 20
+struct_field_align_threshold = 20
+
+# Reorder impl items: type > const > macros > methods.
+reorder_impl_items = true
+
+# Comments and documentation formating
+wrap_comments = true
+normalize_comments = true
+normalize_doc_attributes = true
+format_code_in_doc_comments = true
+report_fixme = "Always"
+todo = "Always"
+\end{verbatim}
+
+\subsection{Enabled some packages}
+\label{sec:orgfa72a3f}
+\subsubsection{Add Packages}
+\label{sec:org6154d64}
+\begin{verbatim}
+(package! editorconfig)
+(package! markdown-preview-mode)
+\end{verbatim}
+
+\subsubsection{Editor config}
+\label{sec:orga92dc19}
+\begin{verbatim}
+(require 'editorconfig)
+(editorconfig-mode 1)
+\end{verbatim}
+
+\subsection{Hydra}
+\label{sec:org82959f4}
+\begin{verbatim}
+(defun insert-my-dev-address ()
+  "insert the my developement Address"
+  (interactive)
+  (insert "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
+  )
+
+(defun insert-my-primary-address ()
+  "insert the my primary developement Address"
+  (interactive)
+  (insert "0x256A6DD65f4a5Ab8680a5011BAf944dfC853Fad3")
+  )
+
+(defhydra dqv-launcher (:color blue :columns 3)
+   "Launch"
+   ("id" (insert-my-dev-address) "dev-address")
+   ("ip" (insert-my-primary-address) "primary-address")
+   ("b" (browse-url "https://vugomars.com") "my-blog")
+   ("gh" (browse-url "https://github.com/vugomars?tab=repositories") "GitHub")
+   ("gl" (browse-url "https://gitlab.com/dangquangvu") "GitLab")
+   ("e" (browse-url "https://remix.ethereum.org/") "Remix Ethereum")
+   )
+\end{verbatim}
+
+\subsection{Disabled format save}
+\label{sec:org32e3c34}
+\begin{verbatim}
+;; Disable linting
+;; (setq +format-on-save-enabled-modes '(shell-mode bash-mode sh-mode))
+\end{verbatim}
+
+\subsection{react}
+\label{sec:org29caf84}
+\subsubsection{exec-path}
+\label{sec:orgfc506ff}
+\begin{verbatim}
+(use-package! exec-path-from-shell
+  :custom
+  (exec-path-from-shell-check-startup-files nil)
+  :config
+  (push "HISTFILE" exec-path-from-shell-variables)
+  (exec-path-from-shell-initialize))
+
+;; Make sure the local node_modules/.bin/ can be found (for eslint)
+;; https://github.com/codesuki/add-node-modules-path
+(use-package! add-node-modules-path
+  :config
+  ;; automatically run the function when web-mode starts
+  (eval-after-load 'web-mode
+    '(add-hook 'web-mode-hook 'add-node-modules-path)))
+\end{verbatim}
+\end{document}

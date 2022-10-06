@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: import default
+# key: Ip
+# --
+import {$0} from '$1'

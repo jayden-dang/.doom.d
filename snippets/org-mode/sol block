@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: sol block
+# key: <sol
+# --
+#+begin_src solidity
+$0
+#+end_src

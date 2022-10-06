@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: #[derive(BorshDeserialize, BorshSerialize)]
+# key: #dbb
+# --
+#[derive(BorshDeserialize, BorshSerialize$0)]
