@@ -300,9 +300,9 @@ Uses `current-date-time-format' for the formatting the date/time."
 (use-package! focus
   :commands focus-mode)
 
-(after! all-the-icons
-  (setcdr (assoc "m" all-the-icons-extension-icon-alist)
-          (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
+;; (after! all-the-icons
+;;   (setcdr (assoc "m" all-the-icons-extension-icon-alist)
+;;           (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
 
 (after! writeroom-mode
   ;; Show mode line
@@ -341,12 +341,14 @@ Uses `current-date-time-format' for the formatting the date/time."
 (global-set-key (kbd "<f2>") nil)        ; ns-print-buffer
 (define-key evil-normal-state-map (kbd ",") nil)
 (define-key evil-visual-state-map (kbd ",") nil)
+(define-key evil-normal-state-map (kbd "K") 'eldoc)
 
-(global-set-key (kbd "<f2>") 'rgrep)
-(global-set-key (kbd "<f5>") 'deadgrep)
-(global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
+;; (global-set-key (kbd "<f2>") 'rgrep)
+;; (global-set-key (kbd "K") 'eldoc)
+;; (global-set-key (kbd "<f5>") 'deadgrep)
+;; (global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
 ;; (global-set-key (kbd "<f8>") 'quickrun)
-(global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
+;; (global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
 (global-set-key (kbd "M-z") 'jayden-launcher/body)
 ;; (global-set-key (kbd "C-t") '+vterm/toggle)
 ;; (global-set-key (kbd "C-S-t") '+vterm/here)
@@ -1289,14 +1291,6 @@ current buffer's, reload dir-locals."
   ;; Show gravatars
   (setq magit-revision-show-gravatars '("^Author:     " . "^Commit:     ")))
 
-(use-package! company-conventional-commits
-  :after (magit company)
-  :config
-  (add-hook
-   'git-commit-setup-hook
-   (lambda ()
-     (add-to-list 'company-backends 'company-conventional-commits))))
-
 ;; (use-package! magit-pretty-graph
 ;;   :after magit
 ;;   :init
@@ -1359,6 +1353,13 @@ current buffer's, reload dir-locals."
 (use-package! aas
   :commands aas-mode)
 
+(after! lsp-java
+  (setq lsp-java-java-path "/opt/homebrew/opt/openjdk@17/bin/java"
+        lsp-java-configuration-runtimes
+        '[(:name "JavaSE-17" :path "/opt/homebrew/opt/openjdk@17")]
+        lsp-java-format-enabled t
+        lsp-java-save-action-organize-imports t))
+
 (require 'editorconfig)
 (editorconfig-mode 1)
 
@@ -1368,12 +1369,6 @@ current buffer's, reload dir-locals."
   (insert "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
   )
 
-(defun insert-my-primary-address ()
-  "insert the my primary developement Address"
-  (interactive)
-  (insert "0x256A6DD65f4a5Ab8680a5011BAf944dfC853Fad3")
-  )
-
 (defhydra jayden-launcher (:color blue :columns 3)
    "Launch"
    ("id" (insert-my-dev-address) "dev-address")
@@ -1381,3 +1376,26 @@ current buffer's, reload dir-locals."
    ("b" (browse-url "https://jaydendang.com") "my-blog")
    ("gh" (browse-url "https://github.com/jayden-dang?tab=repositories") "GitHub")
    )
+
+(setq ivy-posframe-display-functions-alist
+      '((swiper                     . ivy-posframe-display-at-point)
+        (complete-symbol            . ivy-posframe-display-at-point)
+        (counsel-M-x                . ivy-display-function-fallback)
+        (counsel-esh-history        . ivy-posframe-display-at-window-center)
+        (counsel-describe-function  . ivy-display-function-fallback)
+        (counsel-describe-variable  . ivy-display-function-fallback)
+        (counsel-find-file          . ivy-display-function-fallback)
+        (counsel-recentf            . ivy-display-function-fallback)
+        (counsel-register           . ivy-posframe-display-at-frame-bottom-window-center)
+        (dmenu                      . ivy-posframe-display-at-frame-top-center)
+        (nil                        . ivy-posframe-display))
+      ivy-posframe-height-alist
+      '((swiper . 20)
+        (dmenu . 20)
+        (t . 10)))
+(ivy-posframe-mode 1) ; 1 enables posframe-mode, 0 disables it.
+
+(map! :leader
+      (:prefix ("v" . "Ivy")
+       :desc "Ivy push view" "v p" #'ivy-push-view
+       :desc "Ivy switch view" "v s" #'ivy-switch-view))

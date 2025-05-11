@@ -162,7 +162,8 @@
         +dragndrop
         +noter
         +pretty
-        +roam
+        ;;+roam
+        +roam2
         +gnuplot
         )
        ;;php               ; perl's insecure younger brother

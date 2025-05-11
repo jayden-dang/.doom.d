@@ -10,9 +10,68 @@
 
 #+begin_src emacs-lisp :tangle pseudo-early-init.el
 ;;; pseudo-early-init.el -*- coding: utf-8-unix; lexical-binding: t; -*-
-
 #+end_src
 
+#+begin_src emacs-lisp :tangle packages.el
+;;; packages.el -*- coding: utf-8-unix; lexical-binding: t; -*-
+;; -*- no-byte-compile: t; -*-
+;;; $DOOMDIR/packages.el
+
+;; To install a package with Doom you must declare them here and run 'doom sync'
+;; on the command line, then restart Emacs for the changes to take effect -- or
+;; use 'M-x doom/reload'.
+
+
+;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
+;(package! some-package)
+
+;; To install a package directly from a remote git repo, you must specify a
+;; `:recipe'. You'll find documentation on what `:recipe' accepts here:
+;; https://github.com/raxod502/straight.el#the-recipe-format
+;(package! another-package
+;  :recipe (:host github :repo "username/repo"))
+
+;; If the package you are trying to install does not contain a PACKAGENAME.el
+;; file, or is located in a subdirectory of the repo, you'll need to specify
+;; `:files' in the `:recipe':
+;(package! this-package
+;  :recipe (:host github :repo "username/repo"
+;           :files ("some-file.el" "src/lisp/*.el")))
+
+;; If you'd like to disable a package included with Doom, you can do so here
+;; with the `:disable' property:
+;(package! builtin-package :disable t)
+
+;; You can override the recipe of a built in package without having to specify
+;; all the properties for `:recipe'. These will inherit the rest of its recipe
+;; from Doom or MELPA/ELPA/Emacsmirror:
+;(package! builtin-package :recipe (:nonrecursive t))
+;(package! builtin-package-2 :recipe (:repo "myfork/package"))
+
+;; Specify a `:branch' to install a package from a particular branch or tag.
+;; This is required for some packages whose default branch isn't 'master' (which
+;; our package manager can't deal with; see raxod502/straight.el#279)
+;(package! builtin-package :recipe (:branch "develop"))
+
+;; Use `:pin' to specify a particular commit to install.
+;(package! builtin-package :pin "1a2b3c4d5e")
+
+
+;; Doom's packages are pinned to a specific commit and updated from release to
+;; release. The `unpin!' macro allows you to unpin single packages...
+;(unpin! pinned-package)
+;; ...or multiple packages
+;(unpin! pinned-package another-pinned-package)
+;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
+;(unpin! t)
+
+;; (package! gitconfig-mode
+;; 	  :recipe (:host github :repo "magit/git-modes"
+;; 			 :files ("gitconfig-mode.el")))
+;; (package! gitignore-mode
+;; 	  :recipe (:host github :repo "magit/git-modes"
+;; 			 :files ("gitignore-mode.el")))
+#+end_src
 *** Useful functions
 - Trong file này chúng ta sẽ định nghĩa 1 vài function, một trong số chúng có thể dược sử dụng trong các file config. Nó có thể được sử dụng trong một vài gói package, nhưng vũ thich tự định nghĩa nó hơn.
 
@@ -561,11 +620,14 @@ Dim the font color of text in surrounding paragraphs, focus only on the current 
 
 ** All the icons :icon:
 Set some custom icons for some file extensions, basically for =.m= files.
+#+begin_src emacs-lisp :tangle packages.el
+(package! all-the-icons)
+#+end_src
 
 #+begin_src emacs-lisp
-(after! all-the-icons
-  (setcdr (assoc "m" all-the-icons-extension-icon-alist)
-          (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
+;; (after! all-the-icons
+;;   (setcdr (assoc "m" all-the-icons-extension-icon-alist)
+;;           (cdr (assoc "matlab" all-the-icons-extension-icon-alist))))
 #+end_src
 
 ** Zen (writeroom) mode
@@ -620,15 +682,17 @@ Set some custom icons for some file extensions, basically for =.m= files.
 (global-set-key (kbd "<f2>") nil)        ; ns-print-buffer
 (define-key evil-normal-state-map (kbd ",") nil)
 (define-key evil-visual-state-map (kbd ",") nil)
+(define-key evil-normal-state-map (kbd "K") 'eldoc)
 #+end_src
 
 ** F1~12(kbd)
 #+begin_src emacs-lisp
-(global-set-key (kbd "<f2>") 'rgrep)
-(global-set-key (kbd "<f5>") 'deadgrep)
-(global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
+;; (global-set-key (kbd "<f2>") 'rgrep)
+;; (global-set-key (kbd "K") 'eldoc)
+;; (global-set-key (kbd "<f5>") 'deadgrep)
+;; (global-set-key (kbd "<M-f5>") 'deadgrep-kill-all-buffers)
 ;; (global-set-key (kbd "<f8>") 'quickrun)
-(global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
+;; (global-set-key (kbd "<f12>") 'smerge-vc-next-conflict)
 (global-set-key (kbd "M-z") 'jayden-launcher/body)
 ;; (global-set-key (kbd "C-t") '+vterm/toggle)
 ;; (global-set-key (kbd "C-S-t") '+vterm/here)
@@ -1905,7 +1969,6 @@ Stolen from [[https://www.reddit.com/r/emacs/comments/26c71k/comment/chq2r8m/?ut
 #+end_src
 
 **** Gravatars
-
 #+begin_src emacs-lisp
 (after! magit
   ;; Show gravatars
@@ -1913,7 +1976,6 @@ Stolen from [[https://www.reddit.com/r/emacs/comments/26c71k/comment/chq2r8m/?ut
 #+end_src
 
 **** Pretty graph
-
 #+begin_src emacs-lisp :tangle packages.el
 (package! magit-pretty-graph
   :recipe (:host github
@@ -2072,6 +2134,15 @@ description language (~*.dot~ / ~*.gv~ files).
   :commands aas-mode)
 #+end_src
 
+** Java
+#+begin_src emacs-lisp
+(after! lsp-java
+  (setq lsp-java-java-path "/opt/homebrew/opt/openjdk@17/bin/java"
+        lsp-java-configuration-runtimes
+        '[(:name "JavaSE-17" :path "/opt/homebrew/opt/openjdk@17")]
+        lsp-java-format-enabled t
+        lsp-java-save-action-organize-imports t))
+#+end_src
 * Other Config
 ** Enabled some packages
 *** Add Packages
@@ -2095,12 +2166,6 @@ description language (~*.dot~ / ~*.gv~ files).
   (insert "0x8b164927E4b449e42d5f82E93373Fd3bF4e5c49a")
   )
 
-(defun insert-my-primary-address ()
-  "insert the my primary developement Address"
-  (interactive)
-  (insert "0x256A6DD65f4a5Ab8680a5011BAf944dfC853Fad3")
-  )
-
 (defhydra jayden-launcher (:color blue :columns 3)
    "Launch"
    ("id" (insert-my-dev-address) "dev-address")
@@ -2110,3 +2175,34 @@ description language (~*.dot~ / ~*.gv~ files).
    )
 #+end_src
 
+** Ivy Posframe
+#+begin_src emacs-lisp :tangle packages.el
+(package! ivy-posframe)
+#+end_src
+
+#+begin_src emacs-lisp
+(setq ivy-posframe-display-functions-alist
+      '((swiper                     . ivy-posframe-display-at-point)
+        (complete-symbol            . ivy-posframe-display-at-point)
+        (counsel-M-x                . ivy-display-function-fallback)
+        (counsel-esh-history        . ivy-posframe-display-at-window-center)
+        (counsel-describe-function  . ivy-display-function-fallback)
+        (counsel-describe-variable  . ivy-display-function-fallback)
+        (counsel-find-file          . ivy-display-function-fallback)
+        (counsel-recentf            . ivy-display-function-fallback)
+        (counsel-register           . ivy-posframe-display-at-frame-bottom-window-center)
+        (dmenu                      . ivy-posframe-display-at-frame-top-center)
+        (nil                        . ivy-posframe-display))
+      ivy-posframe-height-alist
+      '((swiper . 20)
+        (dmenu . 20)
+        (t . 10)))
+(ivy-posframe-mode 1) ; 1 enables posframe-mode, 0 disables it.
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("v" . "Ivy")
+       :desc "Ivy push view" "v p" #'ivy-push-view
+       :desc "Ivy switch view" "v s" #'ivy-switch-view))
+#+end_src
