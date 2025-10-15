@@ -155,6 +155,128 @@ Uses `current-date-time-format' for the formatting the date/time."
   (interactive)
   (scroll-up (/ (window-body-height) 2)))
 
+(defun +pkm/org-files (&rest segments)
+  "Return a flat list of Org files inside SEGMENTS relative to `org-directory`."
+  (apply #'append
+         (mapcar (lambda (segment)
+                   (let ((path (expand-file-name segment org-directory)))
+                     (cond
+                      ((file-directory-p path)
+                       (directory-files-recursively path "\\.org$"))
+                      ((file-readable-p path) (list path))
+                      (t nil))))
+                 segments)))
+
+(defun +pkm/agenda-skip-recent-review (days)
+  "Skip subtree if its LAST_REVIEW property is within DAYS days."
+  (let ((last-review (org-entry-get (point) "LAST_REVIEW")))
+    (when last-review
+      (let* ((ts (org-time-string-to-time last-review))
+             (threshold (time-subtract (current-time) (days-to-time days))))
+        (when (and ts (not (time-less-p ts threshold)))
+          (org-with-wide-buffer
+            (org-end-of-subtree t))
+          (point))))))
+
+(after! org
+  (require 'org-id)
+  (require 'org-protocol)
+  (require 'server)
+  (unless (server-running-p)
+    (server-start))
+
+  (setq org-id-link-to-org-use-id 'create-if-interactive
+        org-log-into-drawer t
+        org-log-reschedule 'time
+        org-log-redeadline 'time
+        org-log-done 'time)
+
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n!)" "ACTIVE(a!)" "WAITING(w@/!)" "SOMEDAY(s)" "|"
+                    "DONE(d!)" "CANCELLED(c@)")
+          (sequence "IDEA(i)" "DRAFT(d)" "EDIT(e)" "READY(r)" "PUBLISHED(p)" "|"
+                    "ARCHIVED(x)")))
+  (setq org-todo-keyword-faces
+        '(("NEXT" . +org-todo-active)
+          ("ACTIVE" . +org-todo-project)
+          ("WAITING" . +org-todo-onhold)
+          ("SOMEDAY" . +org-todo-onhold)
+          ("IDEA" . +org-todo-onhold)
+          ("DRAFT" . +org-todo-active)
+          ("EDIT" . +org-todo-active)
+          ("READY" . +org-todo-active)
+          ("PUBLISHED" . +org-todo-done)
+          ("ARCHIVED" . +org-todo-cancel)))
+
+  (setq org-tag-alist
+        '(("@area/personal" . ?p)
+          ("@area/work" . ?w)
+          ("@area/learning" . ?l)
+          ("@project" . ?P)
+          ("SHARE" . ?s)
+          ("L-CRITICAL" . ?c)))
+  (setq org-tag-persistent-alist org-tag-alist)
+
+  (let ((todo-file (expand-file-name "todo.org" org-directory))
+        (notes-file (expand-file-name "notes.org" org-directory))
+        (journal-file (expand-file-name "journal.org" org-directory)))
+    (setq org-default-notes-file notes-file)
+    (setq org-capture-templates
+          `(("t" "Task" entry (file+headline ,todo-file "Inbox")
+             "* TODO %^{Task}\n:PROPERTIES:\n:ID: %(org-id-uuid)\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:SOURCE: %^{Source|}\n:KEYWORDS: %^{Keywords|}\n:END:\n%?"
+             :prepend t :empty-lines 1 :kill-buffer t)
+            ("n" "Note (triage)" entry (file+headline ,notes-file "Inbox")
+             "* %^{Title}\n:PROPERTIES:\n:ID: %(org-id-uuid)\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:SOURCE: %^{Source|}\n:END:\n%?"
+             :prepend t :empty-lines 1 :kill-buffer t)
+            ("j" "Journal" entry (file+datetree ,journal-file)
+             "* %^{Focus}\n:PROPERTIES:\n:CREATED: %U\n:MOOD: %^{Mood|}\n:ENERGY: %^{Energy|}\n:END:\n%?"
+             :empty-lines 1)
+            ("w" "Web capture (org-protocol)" entry (file+headline ,notes-file "Inbox")
+             "* %:description\n:PROPERTIES:\n:ID: %(org-id-uuid)\n:CREATED: %U\n:SOURCE: %:link\n:CONTEXT: %^{Context|}\n:KEYWORDS: %^{Keywords|}\n:END:\n\n%?"
+             :prepend t :empty-lines 1 :immediate-finish nil :kill-buffer t))))
+
+  (let* ((todo-file (expand-file-name "todo.org" org-directory))
+         (projects-file (expand-file-name "projects.org" org-directory))
+         (creation-files (+pkm/org-files "Roam/Creation"))
+         (stale-files (append (+pkm/org-files "Roam/Areas")
+                              (+pkm/org-files "Roam/Projects"))))
+    (setq org-agenda-start-with-log-mode t
+          org-agenda-log-mode-items '(closed clock))
+    (setq org-agenda-custom-commands
+          `(("d" "Daily Dashboard"
+             ((agenda "" ((org-agenda-span 1)
+                          (org-agenda-start-day "+0d")
+                          (org-agenda-overriding-header "Today")
+                          (org-agenda-skip-deadline-if-done t)
+                          (org-agenda-skip-scheduled-if-done t)))
+              (todo "NEXT"
+                    ((org-agenda-overriding-header "Next Actions")
+                     (org-agenda-files (list ,todo-file))))
+              (todo "WAITING"
+                    ((org-agenda-overriding-header "Waiting On")
+                     (org-agenda-files (list ,todo-file))))))
+            ("w" "Weekly Review"
+             ((agenda "" ((org-agenda-span 7)
+                          (org-agenda-start-on-weekday 1)
+                          (org-agenda-overriding-header "Week Overview")))
+              (todo "ACTIVE"
+                    ((org-agenda-overriding-header "Active Projects")
+                     (org-agenda-files (list ,projects-file))))
+              (todo "SOMEDAY"
+                    ((org-agenda-overriding-header "Someday / Maybe")
+                     (org-agenda-files (list ,todo-file))))
+              (tags "REV_STAGE={DRAFT\\|EDIT}"
+                    ((org-agenda-overriding-header "Creation Pipeline")
+                     (org-agenda-files ,(or creation-files
+                                             (list (expand-file-name "Roam/Creation" org-directory))))))))
+            ("s" "Stale Notes (>90d)"
+             ((tags "+LEVEL<=2"
+                    ((org-agenda-overriding-header "Stale Notes (>90 days since last review)")
+                     (org-tags-match-list-sublevels 'indented)
+                     (org-agenda-files ,(or stale-files
+                                             (list projects-file)))
+                     (org-agenda-skip-function (lambda () (+pkm/agenda-skip-recent-review 90)))))))))))
+
 ;; Increase undo history limits even more
 (after! undo-fu
   (setq undo-limit        10000000     ;; 1MB   (default is 160kB, Doom's default is 400kB)
@@ -1319,48 +1441,51 @@ current buffer's, reload dir-locals."
         lsp-java-save-action-organize-imports t))
 
 (use-package! org-roam
-  :hook
-  (after-init . org-roam-mode)
+  :init
+  (setq org-roam-directory org-directory
+        org-roam-dailies-directory "Roam/journal/")
   :bind (("C-c n l" . org-roam-buffer-toggle)
-          ("C-c n f" . org-roam-node-find)
-          ("C-c n g" . org-roam-graph)
-          ("C-c n i" . org-roam-node-insert)
-          ("C-c n c" . org-roam-capture)
-          ("C-c n j" . org-roam-dailies-capture-today))
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n g" . org-roam-graph)
+         ("C-c n i" . org-roam-node-insert)
+         ("C-c n c" . org-roam-capture)
+         ("C-c n j" . org-roam-dailies-capture-today))
   :config
-  (setq org-roam-directory "~/Areas/JSystem/Org/")
-  (setq org-roam-dailies-directory "Roam/journal/")
-  (setq org-roam-capture-templates
-      '(("d" "default" plain "%?"
-         :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
-                            "#+title: ${title}\n#+date: %U\n\n")
-         :unnarrowed t)
-        ("f" "fleeting" plain "%?"
-         :target (file+head "Roam/Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
-                            "#+title: ${title}\n#+date: %U\n\n")
-         :unnarrowed t)
-        ("l" "literature" plain "%?"
-         :target (file+head "Roam/Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
-                            "#+title: ${title}\n#+author: %^{Author}\n#+source: %^{Source}\n#+date: %U\n\n")
-         :unnarrowed t)
-        ("m" "meeting" plain "%?"
-         :target (file+head "Roam/Capture/Meetings/%<%Y%m%d%H%M%S>-${slug}.org"
-                            "#+title: ${title}\n#+date: %U\n#+attendees: %^{Attendees}\n\n")
-         :unnarrowed t)
-        ("p" "permanent" plain "%?"
-         :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
-                            "#+title: ${title}\n#+date: %U\n\n")
-         :unnarrowed t)))
+  (org-roam-db-autosync-enable)
+  (setq org-roam-completion-everywhere t
+        org-roam-capture-templates
+        '(("f" "Fleeting" plain "%?"
+           :target (file+head "Roam/Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :fleeting:\n:PROPERTIES:\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:SOURCE: %^{Source|}\n:END:\n\n- Context :: %^{Context|}\n\n%?")
+           :unnarrowed t)
+          ("p" "Permanent" plain "%?"
+           :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :permanent:\n:PROPERTIES:\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:SOURCE: %^{Source|}\n:REV_STAGE: %^{Stage|IDEA}\n:END:\n\n* Key Idea\n%?\n\n* Links\n")
+           :unnarrowed t)
+          ("l" "Literature" plain "%?"
+           :target (file+head "Roam/Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :literature:\n:PROPERTIES:\n:CREATED: %U\n:AUTHOR: %^{Author}\n:SOURCE: %^{Source}\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:END:\n\n* Summary\n%?\n\n* Highlights\n")
+           :unnarrowed t)
+          ("m" "Meeting" plain "%?"
+           :target (file+head "Roam/Capture/Meetings/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :meeting:\n:PROPERTIES:\n:CREATED: %U\n:ATTENDEES: %^{Attendees}\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:END:\n\n* Context\n%?\n\n* Decisions\n\n* Next Actions\n")
+           :unnarrowed t)
+          ("r" "Resource" plain "%?"
+           :target (file+head "Roam/Resources/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :resource:\n:PROPERTIES:\n:CREATED: %U\n:SOURCE: %^{Source}\n:AUTHOR: %^{Author|}\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:NEXT_ACTION: %^{Next action|}\n:END:\n\n- Summary :: %^{Summary|}\n\n%?")
+           :unnarrowed t)
+          ("c" "Creation idea" plain "%?"
+           :target (file+head "Roam/Creation/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :creation:\n:PROPERTIES:\n:CREATED: %U\n:REV_STAGE: IDEA\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:END:\n\n* Problem\n%?\n\n* Outline\n\n* Assets\n")
+           :unnarrowed t)))
   (setq org-roam-ref-capture-templates
-        '(("r" "ref" plain
-           "%?"
-           :target ("lit/${slug}" "#+SETUPFILE:./hugo_setup.org
-#+ROAM_KEY: ${ref}
-#+HUGO_SLUG: ${slug}
-#+ROAM_TAGS: website
-#+TITLE: ${title}
-- source :: ${ref}")
-           :unnarrowed t))))
+        '(("w" "Web resource" plain "%?"
+           :target (file+head "Roam/Resources/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :resource:web:\n:PROPERTIES:\n:CREATED: %U\n:SOURCE: ${ref}\n:KEYWORDS: %^{Keywords|}\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:END:\n\n- Summary :: %^{Summary|}\n\n%?")
+           :immediate-finish t
+           :unnarrowed t)))
+  (setq org-roam-node-display-template
+        (concat "${title:80} " (propertize "${tags}" 'face 'org-tag))))
 
 (defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
   :around #'doom-modeline-buffer-file-name ; takes no args
