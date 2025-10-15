@@ -40,7 +40,7 @@
 (defvar +my/lang-mother-tongue "vn")
 
 ;; Set it early, to avoid creating "~/org" at startup
-(setq org-directory "~/Dropbox/Org")
+(setq org-directory "~/Areas/JSystem/Org")
 
 (defadvice! prompt-for-buffer (&rest _)
   :after '(evil-window-split evil-window-vsplit)
@@ -931,16 +931,18 @@ Uses `current-date-time-format' for the formatting the date/time."
   (add-to-list 'treemacs-ignored-file-predicates #'+treemacs-ignore-filter))
 
 ;; Run `M-x projectile-discover-projects-in-search-path' to reload paths from this variable
-(setq projectile-project-search-path '("~/Dropbox/PhD/papers"
-                                       "~/Dropbox/PhD/workspace"
-                                       "~/Dropbox/PhD/workspace-no"
-                                       "~/Dropbox/PhD/workspace-no/ez-wheel/swd-starter-kit-repo"
+(setq projectile-project-search-path '("~/Areas/JSystem/PhD/papers"
+                                       "~/Areas/JSystem/PhD/workspace"
+                                       "~/Areas/JSystem/PhD/workspace-no"
+                                       "~/Areas/JSystem/PhD/workspace-no/ez-wheel/swd-starter-kit-repo"
                                        ("~/myProjects/" . 2))) ;; ("dir" . depth)
 
 (setq projectile-ignored-projects '("/tmp"
                                     "~/"
                                     "~/.cache"
                                     "~/.doom.d"
+                                    "~/.config/doom"
+                                    "~/.config/emacs"
                                     "~/.emacs.d"
                                     "~/.emacs.d/.local/straight/repos/"))
 
@@ -1075,53 +1077,6 @@ current buffer's, reload dir-locals."
         lsp-vhdl-server 'vhdl-ls
         lsp-vhdl--params nil)
   (require 'lsp-vhdl))
-
-(use-package! company-solidity
-  :after (company))
-
-
-(use-package! solidity-mode
-  :config
-  (setq format-all-mode nil))
-(setq-hook! 'solidity-mode-hook +format-all-mode nil)
-
-(add-hook 'solidity-mode-hook
-          (lambda ()
-            (set (make-local-variable 'company-backends)
-                 (append '((company-solidity company-capf company-dabbrev-code))
-                         company-backends))))
-
-(use-package! solidity-flycheck
-  :config
-  (setq solidity-solc-path "~/.nvm/version/node/v16.17.0/lib/node_modules/solc/solc")
-  (setq solidity-solium-path "~/.nvm/version/node/v16.17.0/bin/solium")
-  (setq solidity-flycheck-solc-checker-active t)
-  (setq solidity-flycheck-solium-checker-active t)
-  (setq flycheck-solidity-solc-addstd-contracts t)
-  (setq flycheck-solidity-solium-soliumrcfile "~/.soliumrc.json")
-)
-
-(use-package! typescript-mode
-  :init
-  (define-derived-mode typescript-tsx-ts-mode typescript-mode "typescript-tsx")
-  (add-to-list 'auto-mode-alist (cons (rx ".tsx" string-end) #'typescript-tsx-ts-mode))
-  t)
-
-(add-hook! typescript-tsx-ts-mode 'lsp!)
-
-(use-package! tree-sitter
-  :hook (prog-mode . turn-on-tree-sitter-mode)
-  :hook (tree-sitter-after-on . tree-sitter-hl-mode)
-  :config
-  (require 'tree-sitter-langs)
-
-  (tree-sitter-require 'tsx)
-  (add-to-list 'tree-sitter-major-mode-language-alist '(typescript-tsx-ts-mode . tsx))
-
-  ;; This makes every node a link to a section of code
-  (setq tree-sitter-debug-jump-buttons t
-        ;; and this highlights the entire sub tree in your code
-        tree-sitter-debug-highlight-jump-region t))
 
 (use-package! maple-iedit
    :commands (maple-iedit-match-all maple-iedit-match-next maple-iedit-match-previous)

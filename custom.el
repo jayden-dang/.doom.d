@@ -6,7 +6,8 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    '(all-the-icons-completion all-the-icons-ivy-rich all-the-icons-nerd-fonts
-     engine-mode ivy-posframe)))
+     engine-mode ivy-posframe))
+ '(warning-suppress-log-types '((iedit))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
