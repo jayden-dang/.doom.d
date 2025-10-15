@@ -57,6 +57,8 @@
 ;; 	  :recipe (:host github :repo "magit/git-modes"
 ;; 			 :files ("gitignore-mode.el")))
 
+(package! org-ql)
+
 (package! vundo
   :recipe (:host github
            :repo "casouri/vundo")

@@ -167,6 +167,15 @@ Uses `current-date-time-format' for the formatting the date/time."
                       (t nil))))
                  segments)))
 
+(defun +pkm/org-all-files ()
+  "Return unique Org files participating in the PKM system."
+  (seq-uniq
+   (append
+    (mapcar (lambda (file)
+              (expand-file-name file org-directory))
+            '("todo.org" "notes.org" "projects.org" "journal.org" "workflow-example.org" "system-charter.org"))
+    (+pkm/org-files "Roam/Areas" "Roam/Projects" "Roam/Capture" "Roam/Creation" "Roam/Resources"))))
+
 (defun +pkm/agenda-skip-recent-review (days)
   "Skip subtree if its LAST_REVIEW property is within DAYS days."
   (let ((last-review (org-entry-get (point) "LAST_REVIEW")))
@@ -178,9 +187,40 @@ Uses `current-date-time-format' for the formatting the date/time."
             (org-end-of-subtree t))
           (point))))))
 
+(defun +pkm/org-recent-notes ()
+  "Show headings with timestamps in the last 14 days across the PKM system."
+  (interactive)
+  (org-ql-search (+pkm/org-all-files)
+                 '(ts :from -14 :to today)
+                 :title "Recent (last 14 days)"
+                 :sort '(date descending)))
+
+(defun +pkm/org-keyword-search (keywords)
+  "Search PKM notes for KEYWORDS using `org-ql'."
+  (interactive "sKeyword(s): ")
+  (unless (string-blank-p keywords)
+    (org-ql-search (+pkm/org-all-files)
+                   `(regexp ,keywords)
+                   :title (format "Keyword search: %s" keywords)
+                   :sort '(date descending))))
+
+(defun +pkm/org-materials-needed ()
+  "Open an agenda view for entries tagged NEEDS."
+  (interactive)
+  (org-tags-view nil "+NEEDS"))
+
+(defun +pkm/org-publishing-candidates ()
+  "Open an agenda view for entries tagged SHARE."
+  (interactive)
+  (org-tags-view nil "+SHARE"))
+
 (after! org
+  (require 'seq)
+  (require 'subr-x)
   (require 'org-id)
   (require 'org-protocol)
+  (require 'org-ql)
+  (require 'org-ql-view)
   (require 'server)
   (unless (server-running-p)
     (server-start))
@@ -213,6 +253,7 @@ Uses `current-date-time-format' for the formatting the date/time."
           ("@area/work" . ?w)
           ("@area/learning" . ?l)
           ("@project" . ?P)
+          ("NEEDS" . ?m)
           ("SHARE" . ?s)
           ("L-CRITICAL" . ?c)))
   (setq org-tag-persistent-alist org-tag-alist)
@@ -237,9 +278,14 @@ Uses `current-date-time-format' for the formatting the date/time."
 
   (let* ((todo-file (expand-file-name "todo.org" org-directory))
          (projects-file (expand-file-name "projects.org" org-directory))
+         (notes-file (expand-file-name "notes.org" org-directory))
+         (journal-file (expand-file-name "journal.org" org-directory))
          (creation-files (+pkm/org-files "Roam/Creation"))
          (stale-files (append (+pkm/org-files "Roam/Areas")
-                              (+pkm/org-files "Roam/Projects"))))
+                              (+pkm/org-files "Roam/Projects")))
+         (resource-files (+pkm/org-files "Roam/Resources"))
+         (all-files (seq-uniq (append (list todo-file projects-file notes-file journal-file)
+                                      creation-files stale-files resource-files))))
     (setq org-agenda-start-with-log-mode t
           org-agenda-log-mode-items '(closed clock))
     (setq org-agenda-custom-commands
@@ -275,7 +321,21 @@ Uses `current-date-time-format' for the formatting the date/time."
                      (org-tags-match-list-sublevels 'indented)
                      (org-agenda-files ,(or stale-files
                                              (list projects-file)))
-                     (org-agenda-skip-function (lambda () (+pkm/agenda-skip-recent-review 90)))))))))))
+                     (org-agenda-skip-function (lambda () (+pkm/agenda-skip-recent-review 90))))))
+            ("R" "Recent (14d timestamps)" org-ql-block
+             ((org-ql-block-header "Recent entries (last 14 days)")
+              (org-ql ,all-files
+                '(ts :from -14 :to today)
+                ((org-ql-block-item :todo-and-heading)))))
+            ("K" "Keyword search" search ""
+             ((org-agenda-files ,all-files)
+              (org-agenda-overriding-header "Keyword search (prompt)")))
+            ("M" "Materials Needed" tags "+NEEDS"
+             ((org-agenda-overriding-header "Materials / resources required")
+              (org-tags-match-list-sublevels 'indented)))
+            ("P" "Publishing candidates" tags "+SHARE"
+             ((org-agenda-overriding-header "Publishing candidates (:SHARE:)")))
+            )))))
 
 ;; Increase undo history limits even more
 (after! undo-fu
@@ -594,6 +654,12 @@ Uses `current-date-time-format' for the formatting the date/time."
        :n     "wd"           #'treemacs-remove-workspace
        :n     "wf"           #'treemacs-rename-workspace
        )
+
+      (:prefix ("oA" . "Agenda+")
+       :desc "Recent notes (14d)" "r" #'+pkm/org-recent-notes
+       :desc "Keyword search (org-ql)" "k" #'+pkm/org-keyword-search
+       :desc "Materials needed" "m" #'+pkm/org-materials-needed
+       :desc "Publishing candidates" "p" #'+pkm/org-publishing-candidates)
 
       :nv "w -" #'evil-window-split
       :nv "j" #'switch-to-buffer
@@ -1449,6 +1515,7 @@ current buffer's, reload dir-locals."
          ("C-c n g" . org-roam-graph)
          ("C-c n i" . org-roam-node-insert)
          ("C-c n c" . org-roam-capture)
+         ("C-c n r" . org-roam-node-random)
          ("C-c n j" . org-roam-dailies-capture-today))
   :config
   (org-roam-db-autosync-enable)
@@ -1460,7 +1527,7 @@ current buffer's, reload dir-locals."
            :unnarrowed t)
           ("p" "Permanent" plain "%?"
            :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
-                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :permanent:\n:PROPERTIES:\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:SOURCE: %^{Source|}\n:REV_STAGE: %^{Stage|IDEA}\n:END:\n\n* Key Idea\n%?\n\n* Links\n")
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :permanent:\n:PROPERTIES:\n:CREATED: %U\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:SOURCE: %^{Source|}\n:REV_STAGE: %^{Stage|IDEA}\n:EXPORT_FILE_NAME: ${slug}\n:END:\n\n* Key Idea\n%?\n\n* Links\n")
            :unnarrowed t)
           ("l" "Literature" plain "%?"
            :target (file+head "Roam/Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
@@ -1476,7 +1543,7 @@ current buffer's, reload dir-locals."
            :unnarrowed t)
           ("c" "Creation idea" plain "%?"
            :target (file+head "Roam/Creation/%<%Y%m%d%H%M%S>-${slug}.org"
-                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :creation:\n:PROPERTIES:\n:CREATED: %U\n:REV_STAGE: IDEA\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:END:\n\n* Problem\n%?\n\n* Outline\n\n* Assets\n")
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :creation:\n:PROPERTIES:\n:CREATED: %U\n:REV_STAGE: IDEA\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:EXPORT_FILE_NAME: ${slug}\n:END:\n\n* Problem\n%?\n\n* Outline\n\n* Assets\n")
            :unnarrowed t)))
   (setq org-roam-ref-capture-templates
         '(("w" "Web resource" plain "%?"
