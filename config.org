@@ -543,7 +543,8 @@ Uses `current-date-time-format' for the formatting the date/time."
     (setq org-agenda-start-with-log-mode t
           org-agenda-log-mode-items '(closed clock))
     (setq org-agenda-custom-commands
-          `(("d" "Daily Dashboard"
+          `(
+            ("d" "Daily Dashboard"
              ((agenda "" ((org-agenda-span 1)
                           (org-agenda-start-day "+0d")
                           (org-agenda-overriding-header "Today")
@@ -567,29 +568,29 @@ Uses `current-date-time-format' for the formatting the date/time."
                      (org-agenda-files (list ,todo-file))))
               (tags "REV_STAGE={DRAFT\\|EDIT}"
                     ((org-agenda-overriding-header "Creation Pipeline")
-                     (org-agenda-files ,(or creation-files
-                                             (list (expand-file-name "Roam/Creation" org-directory))))))))
+                     (org-agenda-files (list ,@(or creation-files
+                                                   (list (expand-file-name "Roam/Creation" org-directory)))))))))
             ("s" "Stale Notes (>90d)"
              ((tags "+LEVEL<=2"
                     ((org-agenda-overriding-header "Stale Notes (>90 days since last review)")
                      (org-tags-match-list-sublevels 'indented)
-                     (org-agenda-files ,(or stale-files
-                                             (list projects-file)))
-                     (org-agenda-skip-function (lambda () (+pkm/agenda-skip-recent-review 90))))))
-            ("R" "Recent (14d timestamps)" org-ql-block
-             ((org-ql-block-header "Recent entries (last 14 days)")
-              (org-ql ,all-files
-                '(ts :from -14 :to today)
-                ((org-ql-block-item :todo-and-heading)))))
+                     (org-agenda-files (list ,@(or stale-files
+                                                   (list projects-file))))
+                     (org-agenda-skip-function (lambda () (+pkm/agenda-skip-recent-review 90)))))))
+            ("R" "Recent (14d timestamps)" agenda ""
+             ((org-super-agenda-groups
+               '((:name "Recent (14 days)"
+                        :and (:expr (org-search-view nil "ts:-14d")))))))
             ("K" "Keyword search" search ""
-             ((org-agenda-files ,all-files)
+             ((org-agenda-files (list ,@all-files))
               (org-agenda-overriding-header "Keyword search (prompt)")))
             ("M" "Materials Needed" tags "+NEEDS"
              ((org-agenda-overriding-header "Materials / resources required")
               (org-tags-match-list-sublevels 'indented)))
             ("P" "Publishing candidates" tags "+SHARE"
              ((org-agenda-overriding-header "Publishing candidates (:SHARE:)")))
-            )))))
+            ))
+    ))
 #+end_src
 
 ** Undo
@@ -1022,11 +1023,12 @@ Set some custom icons for some file extensions, basically for =.m= files.
        :n     "wf"           #'treemacs-rename-workspace
        )
 
-      (:prefix ("oA" . "Agenda+")
-       :desc "Recent notes (14d)" "r" #'+pkm/org-recent-notes
-       :desc "Keyword search (org-ql)" "k" #'+pkm/org-keyword-search
-       :desc "Materials needed" "m" #'+pkm/org-materials-needed
-       :desc "Publishing candidates" "p" #'+pkm/org-publishing-candidates)
+      (:prefix ("o" . "Org")
+       (:prefix-map ("A" . "Agenda+")
+        :desc "Recent notes (14d)" "r" #'+pkm/org-recent-notes
+        :desc "Keyword search (org-ql)" "k" #'+pkm/org-keyword-search
+        :desc "Materials needed" "m" #'+pkm/org-materials-needed
+        :desc "Publishing candidates" "p" #'+pkm/org-publishing-candidates))
 
       :nv "w -" #'evil-window-split
       :nv "j" #'switch-to-buffer
