@@ -126,6 +126,9 @@
            :repo "ymarco/auto-activating-snippets")
   :pin "566944e3b336c29d3ac11cd739a954c9d112f3fb")
 
+(package! org-roam-ui :recipe (:host github :repo "org-roam/org-roam-ui" :files ("*.el" "out")) :pin "5ac74960231db0bf7783c2ba7a19a60f582e91ab")
+(package! websocket :pin "40c208eaab99999d7c1e4bea883648da24c03be3") ; dependency of `org-roam-ui'
+
 (package! editorconfig)
 (package! markdown-preview-mode)
 (package! move-text)

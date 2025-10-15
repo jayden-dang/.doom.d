@@ -270,6 +270,7 @@ If \"file.ext\" exists, returns \"file-0.ext\"."
 
 ;; Set it early, to avoid creating "~/org" at startup
 (setq org-directory "~/Areas/JSystem/Org")
+(setq org-agenda-files (directory-files-recursively org-directory "\\.org$"))
 #+end_src
 
 ** Common Function :function:declaration:
@@ -2086,6 +2087,87 @@ description language (~*.dot~ / ~*.gv~ files).
         lsp-java-format-enabled t
         lsp-java-save-action-organize-imports t))
 #+end_src
+* Writing
+** Org-roam
+#+begin_src emacs-lisp
+(use-package! org-roam
+  :hook
+  (after-init . org-roam-mode)
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+          ("C-c n f" . org-roam-node-find)
+          ("C-c n g" . org-roam-graph)
+          ("C-c n i" . org-roam-node-insert)
+          ("C-c n c" . org-roam-capture)
+          ("C-c n j" . org-roam-dailies-capture-today))
+  :config
+  (setq org-roam-directory "~/Areas/JSystem/Org/Roam/")
+  (setq org-roam-capture-templates
+      '(("d" "default" plain "%?"
+         :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("f" "fleeting" plain "%?"
+         :target (file+head "Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("l" "literature" plain "%?"
+         :target (file+head "Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+author: %^{Author}\n#+source: %^{Source}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("p" "permanent" plain "%?"
+         :target (file+head "Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)))
+  (setq org-roam-ref-capture-templates
+        '(("r" "ref" plain
+           "%?"
+           :target ("lit/${slug}" "#+SETUPFILE:./hugo_setup.org
+#+ROAM_KEY: ${ref}
+#+HUGO_SLUG: ${slug}
+#+ROAM_TAGS: website
+#+TITLE: ${title}
+- source :: ${ref}")
+           :unnarrowed t)))
+  )
+#+end_src
+
+** Modeline file name
+- All those numbers! It's messy. Let's adjust this in a similar way that i have
+  in the Window tile
+  #+begin_src emacs-lisp
+(defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
+  :around #'doom-modeline-buffer-file-name ; takes no args
+  (if (string-match-p (regexp-quote org-roam-directory) (or buffer-file-name ""))
+      (replace-regexp-in-string
+       "\\(?:^\\|.*/\\)\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)[0-9]*-"
+       "🢔(\\1-\\2-\\3) "
+       (subst-char-in-string ?_ ?  buffer-file-name))
+    (funcall orig-fun)))
+  #+end_src
+** Graph View
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-roam-ui :recipe (:host github :repo "org-roam/org-roam-ui" :files ("*.el" "out")) :pin "5ac74960231db0bf7783c2ba7a19a60f582e91ab")
+(package! websocket :pin "40c208eaab99999d7c1e4bea883648da24c03be3") ; dependency of `org-roam-ui'
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! websocket
+  :after org-roam)
+
+(use-package! org-roam-ui
+  :after org-roam
+  :commands org-roam-ui-open
+  :hook (org-roam . org-roam-ui-mode)
+  :config
+  (require 'org-roam) ; in case autoloaded
+  (defun org-roam-ui-open ()
+    "Ensure the server is active, then open the roam graph."
+    (interactive)
+    (unless org-roam-ui-mode (org-roam-ui-mode 1))
+    (browse-url-xdg-open (format "http://localhost:%d" org-roam-ui-port))))
+#+end_src
+
+  
 * Other Config
 ** Enabled some packages
 *** Add Packages

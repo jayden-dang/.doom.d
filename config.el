@@ -41,6 +41,7 @@
 
 ;; Set it early, to avoid creating "~/org" at startup
 (setq org-directory "~/Areas/JSystem/Org")
+(setq org-agenda-files (directory-files-recursively org-directory "\\.org$"))
 
 (defadvice! prompt-for-buffer (&rest _)
   :after '(evil-window-split evil-window-vsplit)
@@ -1314,6 +1315,70 @@ current buffer's, reload dir-locals."
         '[(:name "JavaSE-17" :path "/opt/homebrew/opt/openjdk@17")]
         lsp-java-format-enabled t
         lsp-java-save-action-organize-imports t))
+
+(use-package! org-roam
+  :hook
+  (after-init . org-roam-mode)
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+          ("C-c n f" . org-roam-node-find)
+          ("C-c n g" . org-roam-graph)
+          ("C-c n i" . org-roam-node-insert)
+          ("C-c n c" . org-roam-capture)
+          ("C-c n j" . org-roam-dailies-capture-today))
+  :config
+  (setq org-roam-directory "~/Areas/JSystem/Org/Roam/")
+  (setq org-roam-capture-templates
+      '(("d" "default" plain "%?"
+         :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("f" "fleeting" plain "%?"
+         :target (file+head "Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("l" "literature" plain "%?"
+         :target (file+head "Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+author: %^{Author}\n#+source: %^{Source}\n#+date: %U\n\n")
+         :unnarrowed t)
+        ("p" "permanent" plain "%?"
+         :target (file+head "Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n\n")
+         :unnarrowed t)))
+  (setq org-roam-ref-capture-templates
+        '(("r" "ref" plain
+           "%?"
+           :target ("lit/${slug}" "#+SETUPFILE:./hugo_setup.org
+#+ROAM_KEY: ${ref}
+#+HUGO_SLUG: ${slug}
+#+ROAM_TAGS: website
+#+TITLE: ${title}
+- source :: ${ref}")
+           :unnarrowed t)))
+  )
+
+(defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
+  :around #'doom-modeline-buffer-file-name ; takes no args
+  (if (string-match-p (regexp-quote org-roam-directory) (or buffer-file-name ""))
+      (replace-regexp-in-string
+       "\\(?:^\\|.*/\\)\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)[0-9]*-"
+       "🢔(\\1-\\2-\\3) "
+       (subst-char-in-string ?_ ?  buffer-file-name))
+    (funcall orig-fun)))
+
+(use-package! websocket
+  :after org-roam)
+
+(use-package! org-roam-ui
+  :after org-roam
+  :commands org-roam-ui-open
+  :hook (org-roam . org-roam-ui-mode)
+  :config
+  (require 'org-roam) ; in case autoloaded
+  (defun org-roam-ui-open ()
+    "Ensure the server is active, then open the roam graph."
+    (interactive)
+    (unless org-roam-ui-mode (org-roam-ui-mode 1))
+    (browse-url-xdg-open (format "http://localhost:%d" org-roam-ui-port))))
 
 (require 'editorconfig)
 (editorconfig-mode 1)
