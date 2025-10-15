@@ -184,6 +184,8 @@ Uses `current-date-time-format' for the formatting the date/time."
         vundo-compact-display t
         vundo-window-max-height 6))
 
+(setq browse-url-browser-function 'browse-url-default-macosx-browser)
+
 (defvar +messages--auto-tail-enabled nil)
 
 (defun +messages--auto-tail-a (&rest arg)
@@ -1326,22 +1328,27 @@ current buffer's, reload dir-locals."
           ("C-c n c" . org-roam-capture)
           ("C-c n j" . org-roam-dailies-capture-today))
   :config
-  (setq org-roam-directory "~/Areas/JSystem/Org/Roam/")
+  (setq org-roam-directory "~/Areas/JSystem/Org/")
+  (setq org-roam-dailies-directory "Roam/journal/")
   (setq org-roam-capture-templates
       '(("d" "default" plain "%?"
-         :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+         :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
                             "#+title: ${title}\n#+date: %U\n\n")
          :unnarrowed t)
         ("f" "fleeting" plain "%?"
-         :target (file+head "Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
+         :target (file+head "Roam/Capture/Fleeting/%<%Y%m%d%H%M%S>-${slug}.org"
                             "#+title: ${title}\n#+date: %U\n\n")
          :unnarrowed t)
         ("l" "literature" plain "%?"
-         :target (file+head "Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
+         :target (file+head "Roam/Capture/Literature/%<%Y%m%d%H%M%S>-${slug}.org"
                             "#+title: ${title}\n#+author: %^{Author}\n#+source: %^{Source}\n#+date: %U\n\n")
          :unnarrowed t)
+        ("m" "meeting" plain "%?"
+         :target (file+head "Roam/Capture/Meetings/%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}\n#+date: %U\n#+attendees: %^{Attendees}\n\n")
+         :unnarrowed t)
         ("p" "permanent" plain "%?"
-         :target (file+head "Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
+         :target (file+head "Roam/Capture/Permanent/%<%Y%m%d%H%M%S>-${slug}.org"
                             "#+title: ${title}\n#+date: %U\n\n")
          :unnarrowed t)))
   (setq org-roam-ref-capture-templates
@@ -1353,8 +1360,7 @@ current buffer's, reload dir-locals."
 #+ROAM_TAGS: website
 #+TITLE: ${title}
 - source :: ${ref}")
-           :unnarrowed t)))
-  )
+           :unnarrowed t))))
 
 (defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
   :around #'doom-modeline-buffer-file-name ; takes no args
@@ -1378,7 +1384,7 @@ current buffer's, reload dir-locals."
     "Ensure the server is active, then open the roam graph."
     (interactive)
     (unless org-roam-ui-mode (org-roam-ui-mode 1))
-    (browse-url-xdg-open (format "http://localhost:%d" org-roam-ui-port))))
+    (browse-url (format "http://localhost:%d" org-roam-ui-port))))
 
 (require 'editorconfig)
 (editorconfig-mode 1)
