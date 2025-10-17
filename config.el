@@ -174,7 +174,7 @@ Uses `current-date-time-format' for the formatting the date/time."
     (mapcar (lambda (file)
               (expand-file-name file org-directory))
             '("todo.org" "notes.org" "projects.org" "journal.org" "workflow-example.org" "system-charter.org"))
-    (+pkm/org-files "Roam/Areas" "Roam/Projects" "Roam/Capture" "Roam/Creation" "Roam/Resources"))))
+    (+pkm/org-files "Roam/Areas" "Roam/Projects" "Roam/Capture" "Roam/Creation" "Roam/Resources" "Roam/Learning"))))
 
 (defun +pkm/agenda-skip-recent-review (days)
   "Skip subtree if its LAST_REVIEW property is within DAYS days."
@@ -252,6 +252,8 @@ Uses `current-date-time-format' for the formatting the date/time."
         '(("@area/personal" . ?p)
           ("@area/work" . ?w)
           ("@area/learning" . ?l)
+          ("@lang/english" . ?E)
+          ("@lang/chinese" . ?C)
           ("@project" . ?P)
           ("NEEDS" . ?m)
           ("SHARE" . ?s)
@@ -284,8 +286,9 @@ Uses `current-date-time-format' for the formatting the date/time."
          (stale-files (append (+pkm/org-files "Roam/Areas")
                               (+pkm/org-files "Roam/Projects")))
          (resource-files (+pkm/org-files "Roam/Resources"))
+         (learning-files (+pkm/org-files "Roam/Learning"))
          (all-files (seq-uniq (append (list todo-file projects-file notes-file journal-file)
-                                      creation-files stale-files resource-files))))
+                                      creation-files stale-files resource-files learning-files))))
     (setq org-agenda-start-with-log-mode t
           org-agenda-log-mode-items '(closed clock))
     (setq org-agenda-custom-commands
@@ -336,7 +339,44 @@ Uses `current-date-time-format' for the formatting the date/time."
             ("P" "Publishing candidates" tags "+SHARE"
              ((org-agenda-overriding-header "Publishing candidates (:SHARE:)")))
             ))
-    ))
+    )
+
+  (defun +learning/org-recent-sessions (&optional language days)
+    "Review language learning sessions stored in Roam.
+
+LANGUAGE can be the symbol `english', `chinese' or `all' (default). DAYS
+defaults to 7.  Interactively prompt for both and show the matching entries
+with `org-ql-search'."
+    (interactive
+     (let* ((choice (completing-read "Language (english/chinese/all): "
+                                     '("english" "chinese" "all") nil t nil nil "all"))
+            (lang (pcase (downcase choice)
+                    ("english" 'english)
+                    ("chinese" 'chinese)
+                    (_ 'all)))
+            (span (read-number "Days to include: " 7)))
+       (list lang span)))
+    (let* ((span (or days 7))
+           (lang (or language 'all))
+           (files (+pkm/org-files "Roam/Learning"))
+           (query `(and (ts :from ,(- span) :to today)
+                        ,@(pcase lang
+                            ('english '((tags "learning" "english")))
+                            ('chinese '((tags "learning" "chinese")))
+                            (_ '((tags "learning")))))))
+      (if files
+          (org-ql-search
+           files query
+           :title (format "Language sessions (%s, last %d days)"
+                          (pcase lang
+                            ('english "English")
+                            ('chinese "Chinese")
+                            (_ "All"))
+                          span)
+           :sort '(date descending))
+        (message "No language learning files found yet."))))
+
+  )
 
 ;; Increase undo history limits even more
 (after! undo-fu
@@ -1546,6 +1586,14 @@ current buffer's, reload dir-locals."
           ("c" "Creation idea" plain "%?"
            :target (file+head "Roam/Creation/%<%Y%m%d%H%M%S>-${slug}.org"
                               "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :creation:\n:PROPERTIES:\n:CREATED: %U\n:REV_STAGE: IDEA\n:AREA: %^{Area|}\n:PROJECT: %^{Project|}\n:KEYWORDS: %^{Keywords|}\n:EXPORT_FILE_NAME: ${slug}\n:END:\n\n* Problem\n%?\n\n* Outline\n\n* Assets\n")
+           :unnarrowed t)
+          ("E" "English learning session" plain "* Session Overview\n- Focus :: %^{Primary focus|Vocabulary}\n- Duration :: %^{Duration|25m}\n- Resources :: %^{Resources|}\n\n* Vocabulary\n%?\n\n* Practice\n** Listening\n** Speaking\n** Reading\n** Writing\n\n* Reflection\n- Wins ::\n- Challenges ::\n- Next steps ::\n"
+           :target (file+head "Roam/Learning/English/%<%Y%m%d%H%M%S>-english-${slug}.org"
+                              "#+title: ${title} \n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :learning:english:daily:\n:PROPERTIES:\n:CREATED: %U\n:AREA: @area/learning\n:PROJECT: %^{Project|English Mastery}\n:LANGUAGE: English\n:FOCUS: %^{Focus|Vocabulary|Speaking|Listening|Reading|Writing|Grammar}\n:RESOURCE: %^{Primary resource|}\n:ENERGY: %^{Energy|}\n:END:\n\n%?")
+           :unnarrowed t)
+          ("C" "Chinese learning session" plain "* Session Overview\n- Focus :: %^{Primary focus|Hanzi}\n- Duration :: %^{Duration|25m}\n- Resources :: %^{Resources|}\n\n* Vocabulary / Hanzi\n** New Characters\n%?\n** Review Notes\n\n* Practice\n** Listening\n** Speaking\n** Reading\n** Writing\n\n* Reflection\n- Wins ::\n- Challenges ::\n- Next steps ::\n"
+           :target (file+head "Roam/Learning/Chinese/%<%Y%m%d%H%M%S>-chinese-${slug}.org"
+                              "#+title: ${title}\n#+date: %<%Y-%m-%d %a %H:%M>\n#+filetags: :learning:chinese:daily:\n:PROPERTIES:\n:CREATED: %U\n:AREA: @area/learning\n:PROJECT: %^{Project|Chinese Mastery}\n:LANGUAGE: Chinese\n:FOCUS: %^{Focus|Hanzi|Vocabulary|Speaking|Listening|Reading|Writing|Grammar}\n:RESOURCE: %^{Primary resource|}\n:END:\n\n%?")
            :unnarrowed t)))
   (setq org-roam-ref-capture-templates
         '(("w" "Web resource" plain "%?"
@@ -1554,7 +1602,36 @@ current buffer's, reload dir-locals."
            :immediate-finish t
            :unnarrowed t)))
   (setq org-roam-node-display-template
-        (concat "${title:80} " (propertize "${tags}" 'face 'org-tag))))
+        (concat "${title:80} " (propertize "${tags}" 'face 'org-tag)))
+
+  (require 'seq)
+
+  (defun +learning--org-roam-capture-session (key)
+    "Capture a language learning session using template KEY."
+    (let ((template (seq-find (lambda (tpl) (string= (car tpl) key))
+                              org-roam-capture-templates)))
+      (unless template
+        (user-error "No org-roam capture template found for key %s" key))
+      (org-roam-capture-
+       :node (org-roam-node-create)
+       :props '(:finalize find-file)
+       :templates (list template))))
+
+  (defun +learning/capture-english-session ()
+    "Start an English learning session capture using Org-roam."
+    (interactive)
+    (+learning--org-roam-capture-session "E"))
+
+  (defun +learning/capture-chinese-session ()
+    "Start a Chinese learning session capture using Org-roam."
+    (interactive)
+    (+learning--org-roam-capture-session "C")))
+
+(map! :leader
+      (:prefix-map ("n L" . "language learning")
+        :desc "Capture English learning session" "e" #'+learning/capture-english-session
+        :desc "Capture Chinese learning session" "c" #'+learning/capture-chinese-session
+        :desc "Review language sessions" "r" #'+learning/org-recent-sessions))
 
 (defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
   :around #'doom-modeline-buffer-file-name ; takes no args
