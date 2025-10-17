@@ -187,6 +187,19 @@ Uses `current-date-time-format' for the formatting the date/time."
             (org-end-of-subtree t))
           (point))))))
 
+(defun +pkm/agenda-created-on-day-p (date-string)
+  "Return non-nil if current heading was created on DATE-STRING (YYYY-MM-DD)."
+  (let* ((created (org-entry-get (point) "CREATED"))
+         (ts (and created (ignore-errors (org-time-string-to-time created)))))
+    (and ts (string= (format-time-string "%Y-%m-%d" ts) date-string))))
+
+(defun +pkm/agenda-skip-unless-created-today ()
+  "Skip subtree unless its CREATED property matches today."
+  (unless (+pkm/agenda-created-on-day-p (format-time-string "%Y-%m-%d"))
+    (org-with-wide-buffer
+      (org-end-of-subtree t))
+    (point)))
+
 (defun +pkm/org-recent-notes ()
   "Show headings with timestamps in the last 14 days across the PKM system."
   (interactive)
@@ -294,17 +307,24 @@ Uses `current-date-time-format' for the formatting the date/time."
     (setq org-agenda-custom-commands
           `(
             ("d" "Daily Dashboard"
-             ((agenda "" ((org-agenda-span 1)
-                          (org-agenda-start-day "+0d")
-                          (org-agenda-overriding-header "Today")
-                          (org-agenda-skip-deadline-if-done t)
-                          (org-agenda-skip-scheduled-if-done t)))
+             ((agenda ""
+                      ((org-agenda-span 1)
+                       (org-agenda-start-day "+0d")
+                       (org-agenda-overriding-header "Today")
+                       (org-agenda-skip-deadline-if-done t)
+                       (org-agenda-skip-scheduled-if-done t)
+                       (org-agenda-files ',all-files)
+                       (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))))
+              (tags "CREATED={.+}"
+                    ((org-agenda-overriding-header "Created Today")
+                     (org-agenda-files ',all-files)
+                     (org-agenda-skip-function #'+pkm/agenda-skip-unless-created-today)))
               (todo "NEXT"
                     ((org-agenda-overriding-header "Next Actions")
-                     (org-agenda-files (list ,todo-file))))
+                     (org-agenda-files ',all-files)))
               (todo "WAITING"
                     ((org-agenda-overriding-header "Waiting On")
-                     (org-agenda-files (list ,todo-file))))))
+                     (org-agenda-files ',all-files)))))
             ("w" "Weekly Review"
              ((agenda "" ((org-agenda-span 7)
                           (org-agenda-start-on-weekday 1)
