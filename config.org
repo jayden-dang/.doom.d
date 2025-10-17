@@ -435,18 +435,61 @@ Uses `current-date-time-format' for the formatting the date/time."
             (org-end-of-subtree t))
           (point))))))
 
-(defun +pkm/agenda-created-on-day-p (date-string)
-  "Return non-nil if current heading was created on DATE-STRING (YYYY-MM-DD)."
-  (let* ((created (org-entry-get (point) "CREATED"))
-         (ts (and created (ignore-errors (org-time-string-to-time created)))))
-    (and ts (string= (format-time-string "%Y-%m-%d" ts) date-string))))
+(defun +pkm/org-heading-age-in-days (&optional property)
+  "Return age in days of PROPERTY timestamp on current heading.
+Defaults to CREATED.  Return nil when no timestamp is present."
+  (let* ((prop (or property "CREATED"))
+         (value (org-entry-get (point) prop))
+         (time (and value (ignore-errors (org-time-string-to-time value)))))
+    (when time
+      (- (time-to-days (current-time))
+         (time-to-days time)))))
 
-(defun +pkm/agenda-skip-unless-created-today ()
-  "Skip subtree unless its CREATED property matches today."
-  (unless (+pkm/agenda-created-on-day-p (format-time-string "%Y-%m-%d"))
+(defun +pkm/agenda-skip-waiting-younger-than (days)
+  "Skip current WAITING subtree when it is younger than DAYS days.
+Prefers WAITING_SINCE property, falling back to CREATED."
+  (let ((age (or (+pkm/org-heading-age-in-days "WAITING_SINCE")
+                 (+pkm/org-heading-age-in-days))))
+    (when (or (not age) (< age days))
+      (org-with-wide-buffer
+        (org-end-of-subtree t))
+      (point))))
+
+(defun +pkm/org-subtree-contains-todo (keywords)
+  "Return non-nil when current subtree has TODO keywords in KEYWORDS."
+  (let ((states (if (listp keywords) keywords (list keywords)))
+        (found nil))
+    (org-with-wide-buffer
+      (save-excursion
+        (org-map-entries
+         (lambda ()
+           (when (member (org-get-todo-state) states)
+             (setq found t)))
+         t 'tree)))
+    found))
+
+(defun +pkm/agenda-skip-projects-with-next ()
+  "Skip subtree when it already contains a NEXT action."
+  (when (+pkm/org-subtree-contains-todo '("NEXT"))
     (org-with-wide-buffer
       (org-end-of-subtree t))
     (point)))
+
+(defun +pkm/open-daily-dashboard (&optional date)
+  "Open Daily Dashboard agenda, optionally for DATE.
+DATE should be a string acceptable to `org-read-date'."
+  (interactive
+   (list (org-read-date nil nil nil "Daily Dashboard date (RET for today): ")))
+  (let ((org-agenda-start-day (if (string-empty-p date) "+0d" date)))
+    (org-agenda nil "d")))
+#+end_src
+
+*** Keybindings
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("o" . "open")
+       :desc "Daily Dashboard (choose date)" "D" #'+pkm/open-daily-dashboard))
+
 #+end_src
 
 *** Commands & Views
@@ -563,16 +606,12 @@ Uses `current-date-time-format' for the formatting the date/time."
             ("d" "Daily Dashboard"
              ((agenda ""
                       ((org-agenda-span 1)
-                       (org-agenda-start-day "+0d")
                        (org-agenda-overriding-header "Today")
                        (org-agenda-skip-deadline-if-done t)
                        (org-agenda-skip-scheduled-if-done t)
                        (org-agenda-files ',all-files)
-                       (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))))
-              (tags "CREATED={.+}"
-                    ((org-agenda-overriding-header "Created Today")
-                     (org-agenda-files ',all-files)
-                     (org-agenda-skip-function #'+pkm/agenda-skip-unless-created-today)))
+                       (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))
+                       (org-agenda-include-inactive-timestamps t)))
               (todo "NEXT"
                     ((org-agenda-overriding-header "Next Actions")
                      (org-agenda-files ',all-files)))
@@ -580,15 +619,41 @@ Uses `current-date-time-format' for the formatting the date/time."
                     ((org-agenda-overriding-header "Waiting On")
                      (org-agenda-files ',all-files)))))
             ("w" "Weekly Review"
-             ((agenda "" ((org-agenda-span 7)
-                          (org-agenda-start-on-weekday 1)
-                          (org-agenda-overriding-header "Week Overview")))
+             ((agenda ""
+                      ((org-agenda-span 7)
+                       (org-agenda-start-day "-6d")
+                       (org-agenda-use-time-grid nil)
+                       (org-agenda-show-log 'only)
+                       (org-agenda-overriding-header "Last 7 Days (Closed & Clocked)")
+                       (org-agenda-files ',all-files)))
+              (agenda ""
+                      ((org-agenda-span 14)
+                       (org-agenda-start-day "+0d")
+                       (org-agenda-overriding-header "Next 14 Days (Schedule)")
+                       (org-agenda-files ',all-files)
+                       (org-agenda-entry-types '(:deadline :scheduled))))
+              (todo "WAITING"
+                    ((org-agenda-overriding-header "Waiting (Stuck > 7 days)")
+                     (org-agenda-files ',all-files)
+                     (org-agenda-skip-function (lambda ()
+                                                 (+pkm/agenda-skip-waiting-younger-than 7)))
+                     (org-agenda-sorting-strategy '(todo-state-down priority-down tag-up))))
               (todo "ACTIVE"
                     ((org-agenda-overriding-header "Active Projects")
-                     (org-agenda-files (list ,projects-file))))
+                     (org-agenda-files (list ,projects-file))
+                     (org-super-agenda-groups
+                      '((:name "Critical" :tag "L-CRITICAL")
+                        (:name "By Area" :auto-property "AREA")
+                        (:name "Other Projects" :anything t)))))
+              (todo "ACTIVE"
+                    ((org-agenda-overriding-header "Projects Missing Next Actions")
+                     (org-agenda-files (list ,projects-file))
+                     (org-agenda-skip-function #'+pkm/agenda-skip-projects-with-next)
+                     (org-agenda-sorting-strategy '(priority-down tag-up))))
               (todo "SOMEDAY"
-                    ((org-agenda-overriding-header "Someday / Maybe")
-                     (org-agenda-files (list ,todo-file))))
+                    ((org-agenda-overriding-header "Someday / Maybe (Review)")
+                     (org-agenda-files (list ,todo-file))
+                     (org-agenda-sorting-strategy '(priority-down alpha-up))))
               (tags "REV_STAGE={DRAFT\\|EDIT}"
                     ((org-agenda-overriding-header "Creation Pipeline")
                      (org-agenda-files (list ,@(or creation-files
